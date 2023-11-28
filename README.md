@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# MRGN
+# MRGNgeneral
 
 <img src="C:/Users/Bruin/Desktop/Research Assistantship/MRGN_logo/MRGN-logos.png" width="100%" />
 <!-- badges: start --> <!-- badges: end -->
@@ -15,7 +15,7 @@ You can install the development version of MRGN from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("Jarred6068/MRGN")
+devtools::install_github("audreyqyfu/MRGNgeneral")
 ```
 
 ## Example
@@ -23,7 +23,7 @@ devtools::install_github("Jarred6068/MRGN")
 This is a basic example which shows you how to solve a common problem:
 
 ``` r
-library(MRGN)
+library(MRGNgeneral)
 ## basic example code
 ```
 
