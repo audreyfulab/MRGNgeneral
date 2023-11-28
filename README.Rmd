@@ -13,23 +13,20 @@ knitr::opts_chunk$set(
 )
 ```
 
-# MRGN
+# MRGNgeneral
 
-```{r, echo=FALSE}
-knitr::include_graphics("C:/Users/Bruin/Desktop/Research Assistantship/MRGN_logo/MRGN-logos.png")
-```
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of MRGN is to ...
+The goal of MRGNgeneral is to ...
 
 ## Installation
 
-You can install the development version of MRGN from [GitHub](https://github.com/) with:
+You can install the development version of MRGNgeneral from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("Jarred6068/MRGN")
+devtools::install_github("audreyqyfu/MRGNgeneral")
 ```
 
 ## Example
@@ -37,7 +34,7 @@ devtools::install_github("Jarred6068/MRGN")
 This is a basic example which shows you how to solve a common problem:
 
 ```{r example}
-library(MRGN)
+library(MRGNgeneral)
 ## basic example code
 ```
 
