@@ -29,7 +29,7 @@
 #' @seealso \link{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
-#' @export MRGNgeneral
+#' @export MRGN
 #' @import parallel
 
 # We have four blocks of columns in data: V, T, (I&C) and confounders
