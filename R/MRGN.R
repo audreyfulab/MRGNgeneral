@@ -45,7 +45,7 @@
 
 # To do: make dropped.edges and added.edges lists, so as to save the edges dropped/added at each iteration
 
-MRGNgeneral <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes, r Intermediate&Common_Child and 'u' confounders
+MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes, r Intermediate&Common_Child and 'u' confounders
                          scale.data = TRUE,
                          Qlabels = NULL, # column number or names of W,Z-nodes in data
                          p, q, r = length(Qlabels),
