@@ -1,4 +1,6 @@
 # Generate a graph skeleton and the effects
+#' @importFrom MRGN gen.conf.coefs
+
 sim.graph.effects <- function(Adj, b.snp, b.med,
                                number.of.T,
                                number.of.V.T = 1, # numeric vector of the numbers of V-nodes per T-node, or its average
