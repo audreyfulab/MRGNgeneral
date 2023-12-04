@@ -37,9 +37,13 @@
 #' set.seed(21000)
 #' library(MRGNgeneral)
 #' data <- sample.graph.data (number.of.T = 100,
-#'                            conf.num.vec = c(W = 50, Z = 50, U = 200, K = 0))
+#'                            conf.num.vec = c(W = 50, Z = 50, U = 200, K = 0),
+#'                            sample.size = 500)
 #'
-#' Hubs = find.hubs (Testdata$Adjacency, all = TRUE)
+#' # Find hubs
+#' Hubs = find.hubs (data$Adjacency,
+#'                   n_v = 100, n_t = 100, n_q = 100,
+#'                   all = TRUE)
 #' Hubs$hubs
 #' Hubs$number.neighbors[Hubs$hubs,]
 #'
