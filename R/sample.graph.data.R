@@ -8,6 +8,9 @@
 #'
 #' @export sample.graph.data
 #'
+# Import 'find.parents' from MRGN when MRGN export it.
+# @importFrom MRGN find.parents
+#'
 #' @importFrom igraph graph_from_adjacency_matrix
 #'
 #' @importFrom igraph topo_sort
@@ -167,3 +170,19 @@ sample.graph.data <- function (number.of.T,
               Effects = graph.attr$effects.adj,
               igraph = graph.attr$igraph.obj))
 }
+
+
+# Internal function of MRGN (not exported from MRGN) copied on 04 December, 2023
+# Author: Jarred Kvamme
+find.parents <- function (Adjacency, location){
+  #define letter identifier for node types
+  letter.id = c("V","T","K","U","W","Z")
+  all.parents = row.names(Adjacency)[which(Adjacency[, location] == 1)]
+  #allocate each type of parent indexes to list by type
+  parent.list = lapply(letter.id,function(x,y,z){if(any(grepl(x,y))) match(y[which(grepl(x,y))], z) else NA},
+                       y = all.parents, z = colnames(Adjacency))
+  names(parent.list)=c("V","T","K","U","W","Z")
+
+  return(parent.list)
+}
+                       
