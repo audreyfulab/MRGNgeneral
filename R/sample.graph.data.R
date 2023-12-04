@@ -27,7 +27,7 @@
 sample.graph.data <- function (number.of.T,
                             number.of.V.T = 1, # numeric vector of the numbers of V-nodes per T-node, or its average
                             family.number.of.V.T = NULL, # distribution of the numbers of V-nodes per T-node, number.of.V.T is then an average
-                            conf.num.vec, # c("W","Z", "U","K")
+                            conf.num.vec =  = rep(0, 4), # c("W","Z", "U","K")
                             graph_type = "scale-free", # not used when 'method' is supplied
                             method,
                             degree = 3,
