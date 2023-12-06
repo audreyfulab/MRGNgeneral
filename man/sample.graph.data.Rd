@@ -8,7 +8,7 @@ sample.graph.data(
   number.of.T,
   number.of.V.T = 1,
   family.number.of.V.T = NULL,
-  conf.num.vec,
+  conf.num.vec = rep(0, 4),
   graph_type = "scale-free",
   method,
   degree = 3,

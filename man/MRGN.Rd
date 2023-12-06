@@ -2,10 +2,9 @@
 % Please edit documentation in R/MRGN.R
 \name{MRGN}
 \alias{MRGN}
-\alias{MRGNgeneral}
 \title{Infer a causal network using the MRGN algorithm}
 \usage{
-MRGNgeneral(
+MRGN(
   data,
   scale.data = TRUE,
   Qlabels = NULL,
