@@ -16,10 +16,16 @@
 #' of parents (respectively: children, all neighbors including parents and children)
 #' required for a phenotype to be a hub.
 #'
-#' @param all logical, should all the conditions for \code{number.parents},
+#' @param only.T logical, should only phenotypes neighbors be considered for hub
+#' identification? Defaults to \code{only.T = TRUE}. Setting \code{only.T = FALSE}
+#' means that all parent nodes (variants, phenotypes, intermediate variables,
+#' common children, and confounders) are considered.
+#'
+#' @param all.conditions logical, should all the conditions for \code{number.parents},
 #' \code{number.children}, and \code{number.neighbors} be simultaneously satisfied
-#' for a phenotype to be a hub? The default is \code{all = TRUE}. Setting \code{all = FALSE}
-#' means that one condition is sufficient for a phenotype to be a hub.
+#' for a phenotype to be a hub? The default is \code{all.conditions = TRUE}.
+#' Setting \code{all.conditions = FALSE} means that one condition is sufficient
+#' for a phenotype to be a hub.
 #'
 #' @export find.hubs
 #'
@@ -43,7 +49,7 @@
 #' # Find hubs
 #' Hubs = find.hubs (data$Adjacency,
 #'                   n_v = 100, n_t = 100, n_q = 100,
-#'                   all = TRUE)
+#'                   all.conditions = TRUE)
 #' Hubs$hubs
 #' Hubs$number.neighbors[Hubs$hubs,]
 #'
@@ -55,7 +61,8 @@ find.hubs <- function (Adj,
                        number.parents = 10,   # T-node is a hub if more than 10 parents
                        number.children = 10,  # T-node is a hub if more than 10 children
                        number.neighbors = 15, # T-node is a hub if more than 15 neighbors (parents+children)
-                       all = TRUE) {          # Are all conditions required to declare a hub? Default is one condition is sufficient.
+                       only.T = TRUE,
+                       all.conditions = TRUE) {          # Are all conditions required to declare a hub? Default is one condition is sufficient.
   ## Check arguments
   stopifnot(is.numeric(Adj))
   stopifnot(NCOL(Adj) == NROW(Adj))
@@ -63,7 +70,7 @@ find.hubs <- function (Adj,
   stopifnot(is.numeric(n_v), is.numeric(n_t), is.numeric(n_q))
   stopifnot(n_t > 0)
   stopifnot(NCOL(Adj) >= n_v + n_t + n_q)
-  all <- as.logical(all[1])
+  all.conditions <- as.logical(all.conditions[1])
   number.parents <- number.parents[1]
   number.children <- number.children[1]
   number.neighbors <- number.neighbors[1]
@@ -87,11 +94,17 @@ find.hubs <- function (Adj,
   if (is.null(row.names(NbNeighbors)))
     row.names(NbNeighbors) <- paste0("T", 1:n_t)
 
-  Nbparents <- rowSums(NbNeighbors[,1:4, drop = FALSE])
-  Nbchildren <- rowSums(NbNeighbors[,5:6, drop = FALSE])
+  if (only.T) {
+    Nbparents <- NbNeighbors[,2]
+    Nbchildren <- NbNeighbors[,5]
+  }
+  else {
+    Nbparents <- rowSums(NbNeighbors[,1:4, drop = FALSE])
+    Nbchildren <- rowSums(NbNeighbors[,5:6, drop = FALSE])
+  }
 
   ## Find T-nodes which are hubs
-  if (all) {
+  if (all.conditions) {
     Hubs <- ((Nbparents >= number.parents) & (Nbchildren >= number.children)) &
       ((Nbparents + Nbchildren) >= number.neighbors)
   }

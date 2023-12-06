@@ -1,4 +1,5 @@
 # Generate a graph skeleton and the effects
+
 #' @importFrom MRGN gen.conf.coefs
 
 sim.graph.effects <- function(Adj, b.snp, b.med,

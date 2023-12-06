@@ -5,7 +5,6 @@
 #' The number of \code{V}-nodes is specified for each \code{T}-node, or sampled
 #' from a count distribution. Each \code{V}-node is only related to only one \code{T}-node.
 #'
-#'
 #' @export sample.graph.data
 #'
 # Import 'find.parents' from MRGN when MRGN export it.
@@ -30,7 +29,7 @@
 sample.graph.data <- function (number.of.T,
                             number.of.V.T = 1, # numeric vector of the numbers of V-nodes per T-node, or its average
                             family.number.of.V.T = NULL, # distribution of the numbers of V-nodes per T-node, number.of.V.T is then an average
-                            conf.num.vec =  = rep(0, 4), # c("W","Z", "U","K")
+                            conf.num.vec = rep(0, 4), # c("W","Z", "U","K")
                             graph_type = "scale-free", # not used when 'method' is supplied
                             method,
                             degree = 3,
@@ -171,9 +170,7 @@ sample.graph.data <- function (number.of.T,
               igraph = graph.attr$igraph.obj))
 }
 
-
 # Internal function of MRGN (not exported from MRGN) copied on 04 December, 2023
-# Author: Jarred Kvamme
 find.parents <- function (Adjacency, location){
   #define letter identifier for node types
   letter.id = c("V","T","K","U","W","Z")
@@ -185,4 +182,3 @@ find.parents <- function (Adjacency, location){
 
   return(parent.list)
 }
-                       

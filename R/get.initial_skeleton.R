@@ -1,3 +1,6 @@
+
+#' @export get.initial_skeleton
+
 # I itialize the input graph (adjacency matrix) for a call to MRGN
 get.initial_skeleton <- function (data,
                                   p, q,

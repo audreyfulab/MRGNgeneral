@@ -71,11 +71,7 @@ get.reliability.matrix <- function (object, only.edges = FALSE) {
   nb.mediator <- nb.mediator + t(nb.mediator)
   nb.children <- nb.children + t(nb.children)
 
-  # Compute reliability
-  out <- (nb.nodes - 2 - (nb.mediator + nb.children)) / (nb.nodes - 2)
-
-  return(list(reliability = out,
-              nb.mediator = nb.mediator,
+  return(list(nb.mediator = nb.mediator,
               nb.children = nb.children))
 
 }

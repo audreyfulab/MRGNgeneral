@@ -31,6 +31,9 @@
 
 #' @export MRGN
 #' @import parallel
+#' @importFrom MRGN class.vec
+#' @importFrom MRGN infer.trio
+#' @importFrom MRGN adjust.q
 
 # We have four blocks of columns in data: V, T, (I&C) and confounders
 
