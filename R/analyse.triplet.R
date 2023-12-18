@@ -1,7 +1,7 @@
 # Wrap 'analyse.triplet.i' over a set of triplets
 analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Qlabels = NULL,
                                  alpha, FDRcontrol, fdr, lambda, lambda.step, pi0.meth = "bootstrap",
-                                 data, confounders, p, q, verbose,
+                                 data, confounders, n_t, n_v, verbose,
                                  cl = NULL, chunk.size = NULL) {
   switch(FDRcontrol,
          none = {
@@ -9,7 +9,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
                                           MARGIN = 1,
                                           FUN = analyse.triplet.i,
                                           Qlabels = Qlabels,
-                                          data, p = p, q = q,
+                                          data, n_t = n_t, n_v = n_v,
                                           confounders = confounders,
                                           alpha = alpha, half1 = FALSE,
                                           verbose = verbose > 1,
@@ -22,7 +22,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
                                    MARGIN = 1,
                                    FUN = analyse.triplet.i,
                                    Qlabels = Qlabels,
-                                   data, p = p, q = q,
+                                   data, n_t = n_t, n_v = n_v,
                                    confounders = confounders,
                                    alpha = alpha, half1 = TRUE, verbose = verbose > 1,
                                    cl = cl, chunk.size  = chunk.size)
@@ -86,7 +86,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
                                    MARGIN = 1,
                                    FUN = analyse.triplet.i,
                                    Qlabels = Qlabels,
-                                   data, p = p, q = q,
+                                   data, n_t = n_t, n_v = n_v,
                                    confounders = confounders, alpha = alpha,
                                    half1 = TRUE, verbose = verbose > 1,
                                    cl = cl, chunk.size  = chunk.size)
@@ -118,27 +118,28 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
 # Call infer.triplet for triplet analysis
 analyse.triplet.i <- function (col.indices,
                                Qlabels = NULL,
-                               data, p, q, confounders,
+                               data, n_v, n_t, confounders,
                                alpha = 0.01,
                                half1 = FALSE,
                                verbose = FALSE) {
   # Replace Adj column index by data column index if any of the three nodes is a Q-node
+  n_vt <- n_v + n_t
   if (!is.null(Qlabels)) {
-    if (col.indices[1] > (q + p)) {
-      col.indices[1] <- Qlabels[col.indices[1] - (p + q)]
+    if (col.indices[1] > n_vt) {
+      col.indices[1] <- Qlabels[col.indices[1] - n_vt]
     }
-    if (col.indices[2] > (q + p)) {
-      col.indices[2] <- Qlabels[col.indices[2] - (p + q)]
+    if (col.indices[2] > n_vt) {
+      col.indices[2] <- Qlabels[col.indices[2] - n_vt]
     }
-    if (col.indices[3] > (q + p)) {
-      col.indices[3] <- Qlabels[col.indices[3] - (p + q)]
+    if (col.indices[3] > n_vt) {
+      col.indices[3] <- Qlabels[col.indices[3] - n_vt]
     }
   }
 
   # For each triplet, take the union of the confounders for the three T nodes
-  conf.set.triplet <- c(if (col.indices[1] <= q + p) confounders[[col.indices[1] - q]], # Take confounder index if T-node
-                        if (col.indices[2] <= q + p) confounders[[col.indices[2] - q]], # Result is NULL if I&C node
-                        if (col.indices[3] <= q + p) confounders[[col.indices[3] - q]])
+  conf.set.triplet <- c(if (col.indices[1] <= n_vt) confounders[[col.indices[1] - n_v]], # Take confounder index if T-node
+                        if (col.indices[2] <= n_vt) confounders[[col.indices[2] - n_v]], # Result is NULL if I&C node
+                        if (col.indices[3] <= n_vt) confounders[[col.indices[3] - n_v]])
   #conf.set.triplet <- unique(conf.set.triplet)
 
   # All indices of variables in the trio (including counfounders)

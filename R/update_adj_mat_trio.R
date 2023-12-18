@@ -1,16 +1,18 @@
 # Update all edges at once (not sequentially) based on trio analysis
 # Internal child function of "update.adjacency.matrix
 update.adjacency.matrix_trio <-
-  function (Adj, p, q, r, trio.set, inferred.models,
+  function (adjacency,
+            n_v, n_t, n_q, # Currently not used,
+            trio.set, inferred.models,
             stringent = FALSE,
             add.edges = TRUE,
             added.edges = NULL,
             dropped.edges = NULL,
-            solve.conflicts = TRUE, method = "naive",
+            solve.conflicts = TRUE, method = "conservative", # Currently not used: this is the only available method
             cl = NULL, chunk.size = NULL,
             ...) {
     # Save the input Adjacency matrix and added/dropped edges
-    Adj.old <- Adj
+    adjacency.old <- adjacency
     dropped.edges.old <- dropped.edges
 
     # A vector to record the addition of new edges; Useful for generating new trios
@@ -36,7 +38,7 @@ update.adjacency.matrix_trio <-
                          cbind(subtrio.set[,3], subtrio.set[,2]))
 
       # Check for new edge(s) between nodes (V, T)
-      edges.new[index] <- !Adj.old[cbind(subtrio.set[,1], subtrio.set[,2])]
+      edges.new[index] <- !adjacency.old[cbind(subtrio.set[,1], subtrio.set[,2])]
     }
 
     #=============================================================================
@@ -55,7 +57,7 @@ update.adjacency.matrix_trio <-
                          cbind(subtrio.set[,3], subtrio.set[,2]))
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- !Adj.old[cbind(subtrio.set[,1], subtrio.set[,3])]
+      edges.new[index] <- !adjacency.old[cbind(subtrio.set[,1], subtrio.set[,3])]
     }
 
     #=============================================================================
@@ -78,9 +80,9 @@ update.adjacency.matrix_trio <-
       }
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- Adj.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
-        ((Adj.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
-            Adj.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0)
+      edges.new[index] <- adjacency.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
+        ((adjacency.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
+            adjacency.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0)
     }
 
     #=============================================================================
@@ -103,9 +105,9 @@ update.adjacency.matrix_trio <-
       }
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- Adj.old[cbind(subtrio.set[,1], subtrio.set[,3])] *
-        (Adj.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
-           Adj.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
+      edges.new[index] <- adjacency.old[cbind(subtrio.set[,1], subtrio.set[,3])] *
+        (adjacency.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
+           adjacency.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
     }
 
     #=============================================================================
@@ -128,9 +130,9 @@ update.adjacency.matrix_trio <-
       }
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- Adj.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
-        (Adj.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
-           Adj.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
+      edges.new[index] <- adjacency.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
+        (adjacency.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
+           adjacency.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
     }
 
     #=============================================================================
@@ -154,9 +156,9 @@ update.adjacency.matrix_trio <-
       }
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- Adj.old[cbind(subtrio.set[,1], subtrio.set[,3])] *
-        (Adj.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
-           Adj.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
+      edges.new[index] <- adjacency.old[cbind(subtrio.set[,1], subtrio.set[,3])] *
+        (adjacency.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
+           adjacency.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
     }
 
     #=============================================================================
@@ -175,8 +177,8 @@ update.adjacency.matrix_trio <-
                          cbind(subtrio.set[,3], subtrio.set[,2]))
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- Adj.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
-        Adj.old[cbind(subtrio.set[,1], subtrio.set[,3])] == 0
+      edges.new[index] <- adjacency.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
+        adjacency.old[cbind(subtrio.set[,1], subtrio.set[,3])] == 0
 
     }
 
@@ -195,10 +197,10 @@ update.adjacency.matrix_trio <-
                         cbind(subtrio.set[,3], subtrio.set[,2]))
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- Adj.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
-        Adj.old[cbind(subtrio.set[,1], subtrio.set[,3])] *
-        (Adj.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
-           Adj.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
+      edges.new[index] <- adjacency.old[cbind(subtrio.set[,1], subtrio.set[,2])] *
+        adjacency.old[cbind(subtrio.set[,1], subtrio.set[,3])] *
+        (adjacency.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
+           adjacency.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
     }
 
     #=============================================================================
@@ -214,8 +216,8 @@ update.adjacency.matrix_trio <-
                         cbind(subtrio.set[,3], subtrio.set[,2]))
 
       # Check for new edge(s) between V and T nodes
-      edges.new[index] <- (Adj.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
-           Adj.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
+      edges.new[index] <- (adjacency.old[cbind(subtrio.set[,2], subtrio.set[,3])] +
+           adjacency.old[cbind(subtrio.set[,3], subtrio.set[,2])]) == 0
     }
 
     #=============================================================================
@@ -257,12 +259,12 @@ update.adjacency.matrix_trio <-
 
     ## Add edges
     if (NROW(edge_add)) {
-      Adj[edge_add] <- 1
+      adjacency[edge_add] <- 1
     }
 
     ## Drop edges
     if (NROW(edge_drop)) {
-      Adj[edge_drop] <- 0
+      adjacency[edge_drop] <- 0
     }
     nb.drop_conflicts <- 0
 
@@ -296,7 +298,7 @@ update.adjacency.matrix_trio <-
     else
       nb.dropped_edges <- 0
 
-    return(list(Adj = Adj,
+    return(list(adjacency = adjacency,
                 nb.new_edges = nb.new_edges,
                 nb.dropped_edges = nb.dropped_edges,
                 new.edges = edges.new,
@@ -304,133 +306,3 @@ update.adjacency.matrix_trio <-
                 dropped.edges = dropped.edges,
                 nb.conflicts = nb.drop_conflicts + nb.add_conflicts))
   }
-
-dropedges <- function (edge_drop, Adj, dropped.edges) {
-
-  if (!is.null(edge_drop)) {
-    # Remove duplicates
-    edge_drop <- unique(edge_drop)
-
-    # Update edge directions
-    Adj[edge_drop] <- 0
-
-    # Update the list of dropped edge directions
-    drop.edges_new <- paste0(edge_drop[,1], '.', edge_drop[,2])
-    dropped.edges <- c(dropped.edges, drop.edges_new)
-  }
-
-  list(Adj = Adj,
-       edge_drop = edge_drop,
-       dropped.edges = dropped.edges,
-       nb.drop_conflicts = 0)
-
-}
-
-### Add edges
-addedges <- function (edge_add, dropped.edges,
-                      q, Adj, edge_drop,
-                      solve.conflicts,
-                      method, cl, chunk.size) {
-
-  if (!is.null(edge_add)) {
-    ## Remove duplicates
-    edge_add <- unique(edge_add)
-
-    ## Check for conflicts with previous drops before adding edge directions
-    ## (Check that we are not adding an edge we removed earlier)
-
-    # List of edge directions to be added
-    add.edges_new <- paste0(edge_add[,1], '.', edge_add[,2])
-    if (!is.null(dropped.edges)) {
-      # logical vector indicating conflict or not
-      conflicts.adds <- is.element(add.edges_new, dropped.edges)
-      nb.add_conflicts <- sum(conflicts.adds)
-
-      if (nb.add_conflicts) {# If any conflict
-
-          # Does the conflicting edge involve a genetic variant or just T-nodes?
-          V.conflicts.adds <-  edge_add[conflicts.adds,1] <= q
-
-
-          #
-
-          if (solve.conflicts) {
-          # Use 'conflict.add.fun' to solve each conflict
-          confirm.add <- matteApply(X = cbind(edge_add[conflicts.adds,, drop = FALSE],
-                                              V.conflicts.adds),
-                                    MARGIN = 1,
-                                    FUN = conflict.add.fun,
-                                    Adj = Adj,
-                                    method = method,
-                                    cl = cl, chunk.size = chunk.size)
-        }
-        else {
-          # Keep any conflicting edge that involves a genetic variant; drop any T-T edge
-          confirm.add <- V.conflicts.adds
-        }
-
-        # Update 'edge_add' with the result
-        edge_add <- rbind(edge_add[!conflicts.adds,], # non-conflicting adds
-                          edge_add[conflicts.adds,,drop = FALSE][confirm.add,]) # keep only confirmed adds
-
-        # Update the list of newly added edges
-        add.edges_new <- paste0(edge_add[,1], '.', edge_add[,2])
-
-        # Did we re-added an edge direction we dropped?
-        if (any(re.add <- is.element(dropped.edges, add.edges_new))) {
-          # Update the list of dropped edge directions
-          dropped.edges <- dropped.edges[!re.add]
-        }
-
-        # List of newly dropped edges
-        drop.edges_new <- paste0(edge_drop[,1], '.', edge_drop[,2])
-        # Did we re-added an edge direction we just dropped?
-        if (any(re.add <- is.element(drop.edges_new, add.edges_new))) {
-          # Update the list of dropped edge directions
-          edge_drop <- edge_drop[!re.add, , drop = FALSE]
-        }
-
-      }
-    }
-    else {
-      nb.add_conflicts <- 0
-    }
-
-    # Update edge directions
-    Adj[edge_add] <- 1
-  }
-  else {
-    nb.add_conflicts <- 0
-  }
-
-  list(Adj = Adj,
-       edge_add = edge_add,
-       edge_drop = edge_drop,
-       dropped.edges = dropped.edges,
-       nb.add_conflicts = nb.add_conflicts)
-}
-
-# Update edge directions
-#Adj <- addedges (edge_add = edge_add,
-#                 dropped.edges = dropped.edges,
-#                 q = q,
-#                 Adj = Adj,
-#                 edge_drop = edge_drop,
-#                 solve.conflicts = solve.conflicts,
-#                 method = method,
-#                 cl = cl,
-#                 chunk.size = chunk.size)
-#edge_add <- Adj$edge_add
-#dropped.edges <- Adj$dropped.edges
-#nb.add_conflicts <- Adj$nb.add_conflicts
-#edge_drop <- Adj$edge_drop
-#Adj <- Adj$Adj
-## Drop edges
-#Adj <- dropedges (edge_drop = edge_drop,
-#                  dropped.edges = dropped.edges,
-#                  Adj = Adj)
-#edge_drop <- Adj$edge_drop
-#dropped.edges <- Adj$dropped.edges
-#nb.drop_conflicts <- Adj$nb.drop_conflicts
-#Adj <- Adj$Adj
-

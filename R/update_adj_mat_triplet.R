@@ -1,12 +1,12 @@
 # Internal child function of "update.adjacency.matrix
-update.adjacency.matrix_triplet <- function (Adj,
-                                             p, q, r,
+update.adjacency.matrix_triplet <- function (adjacency,
+                                             n_v, n_t, n_q, # Currently not used
                                              triplet.set,
                                              inferred.models,
                                              stringent = FALSE,
                                              add.edges = TRUE,
                                              solve.conflicts = TRUE,
-                                             method = "naive",
+                                             method = "conservative", # Currently not used: this is the only available method
                                              added.edges = NULL,
                                              dropped.edges = NULL,
                                              cl = NULL,
@@ -14,7 +14,7 @@ update.adjacency.matrix_triplet <- function (Adj,
                                              ...) {
 
   # Save the input Adjacency matrix
-  Adj.old <- Adj
+  adjacency.old <- adjacency
   dropped.edges.old <- dropped.edges
 
   # Initialize two 2-columns matrices to track edge adds (or confirmation) and edge drops
@@ -75,7 +75,7 @@ update.adjacency.matrix_triplet <- function (Adj,
   nb.drop_conflicts <- nb.add_conflicts <- 0
   ## Drop edges
   if (NROW(edge_drop)) {
-    Adj[edge_drop] <- 0
+    adjacency[edge_drop] <- 0
   }
 
   # List of edge directions to be added
@@ -89,7 +89,7 @@ update.adjacency.matrix_triplet <- function (Adj,
     }
     ## Add edges
     if (NROW(edge_add)) {
-      Adj[edge_add] <- 1
+      adjacency[edge_add] <- 1
     }
 
   # Count newly added edges
@@ -122,7 +122,7 @@ update.adjacency.matrix_triplet <- function (Adj,
     nb.dropped_edges <- 0
 
 
-  return(list(Adj = Adj,
+  return(list(adjacency = adjacency,
               nb.dropped_edges = nb.dropped_edges,
               nb.new_edges = length(edge_add),
               added.edges = added.edges,

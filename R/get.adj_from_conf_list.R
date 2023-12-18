@@ -1,25 +1,26 @@
-### A function to convert a list of selected confounders (U-nodes)
+### A function to convert a list of selected confounders (C-nodes)
 ### into an adjacency matrix
-# u = Total number of candidate confounders
-# q = Number of variants (V-nodes)
-# Return a u X p matrix of 0/1 where p in the number of genes (T-nodes)
+# n_c = Total number of candidate confounding variables
+# n_v = Number of variants (V-nodes)
+# Return a n_c X n_t matrix of 0/1 where
+# n_t in the number of genes (T-nodes); n_t = length(conf.list)
 
-#' @export get.adj_from_conf_list
+#' @export get.adj.from.conf.list
 
-get.adj_from_conf_list <- function (confounder.list,
+get.adj.from.conf.list <- function (conf.list,
                                     n_c,
-                                    offset = p + q,
-                                    q = 0) {
+                                    offset = n_t + n_v,
+                                    n_v = 0) {
   # Number of genes (T-nodes)
-  p <- length(confounder.list)
+  n_t <- length(conf.list)
 
-  # Convert each element of 'confounder.list' (vector of indices of U-nodes selected for a T-node)
+  # Convert each element of 'conf.list' (vector of indices of U-nodes selected for a T-node)
   # into a matrix column using 'confounder.vec2adj'
-  Adj <- sapply(confounder.list,
+  Adj <- sapply(conf.list,
                 FUN = confounder.vec2adj,
                 n_c = n_c,
                 offset = offset)
-  dimnames(Adj) <- list(paste0('C', 1:n_c), paste0('T', 1:p))
+  dimnames(Adj) <- list(paste0('C', 1:n_c), paste0('T', 1:n_t))
 
   # Return an 'adjacency.matrix' object
   return(structure(Adj, class = "adjacency.matrix"))

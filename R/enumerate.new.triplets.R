@@ -1,13 +1,13 @@
 # triplet.set = trios that were inferred "Other" from a previous analysis
 
 get.new.triplet.type <- function (triplet.set,
-                                  Adj,
+                                  adjacency,
                                   cl, chunk.size = NULL) {
   # Get update-able triplets (and types of triplet) if any
   triplets <- matteApply(triplet.set[,1:3, drop = FALSE],
                               MARGIN = 1,
                               FUN = get.new.triplet.type.i,
-                              Adj = Adj,
+                              adjacency = adjacency,
                               cl = cl, chunk.size = chunk.size)
   if (NCOL(triplets) > 1) {
     triplets <- t(triplets)
@@ -22,8 +22,8 @@ get.new.triplet.type <- function (triplet.set,
 }
 
 # x is a vector of three elements such that we have T1-T2-T3
-get.new.triplet.type.i <- function(x, Adj) {
-  Aijk <- Adj[x, x]
+get.new.triplet.type.i <- function(x, adjacency) {
+  Aijk <- adjacency[x, x]
 
   if (all(Aijk == matrix(c(0, 1, 0,
                            1, 0, 1,

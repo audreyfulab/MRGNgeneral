@@ -11,36 +11,36 @@ check.mrgn.args <- function() {
     m <- NCOL(data)
 
     # Check validity and consistency of block sizes
-    stopifnot(is.numeric(q), is.numeric(p), is.numeric(r), is.numeric(u))
-    stopifnot(q >= 0, q <= m, p >= 0, p <= m, r >= 0, r <= m, u >= 0, u < m, p + q + u + r <= m)
-    if (m > p + q + r + u)
-      data <- data[, 1:(p + q + r + u)]
+    stopifnot(is.numeric(n_v), is.numeric(n_t), is.numeric(n_q), is.numeric(n_u))
+    stopifnot(n_v >= 0, n_v <= m, n_t >= 0, n_t <= m, n_q >= 0, n_q <= m, n_u >= 0, n_u < m, n_t + n_v + n_u + n_q <= m)
+    if (m > n_t + n_v + n_q + n_u)
+      data <- data[, 1:(n_t + n_v + n_q + n_u)]
     if (scale.data) {
-      data[,-c(1:q)] <- scale(data[,-c(1:q)], center = TRUE, scale = TRUE)
+      data[,-c(1:n_v)] <- scale(data[,-c(1:n_v)], center = TRUE, scale = TRUE)
     }
-    m <- p + q + r + u
-    nb.nodes <- p + q + r
+    m <- n_t + n_v + n_q + n_u
+    nb.nodes <- n_t + n_v + n_q
 
     # Save original labels (if any) or label columns
     Labels <- colnames(data)
 
     # Labels for Q-nodes
-    if(is.null(Qlabels) & r > 0) {
-      Qlabels <- (p + q + 1):(p + q + r)
+    if(is.null(Qlabels) & n_q > 0) {
+      Qlabels <- (n_t + n_v + 1):(n_t + n_v + n_q)
     }
 
     if (is.null(Labels)) {
-      Vlabels <- if (q > 0) paste0('V', 1:q)
-      Tlabels <- if (p > 0)  paste0('T', 1:p)
-      WZlabels <- if (r > 0)  paste0('Q', 1:r)
-      Clabels <- if (u > 0) paste0('C', 1:u)
+      Vlabels <- if (n_v > 0) paste0('V', 1:n_v)
+      Tlabels <- if (n_t > 0)  paste0('T', 1:n_t)
+      WZlabels <- if (n_q > 0)  paste0('Q', 1:n_q)
+      Clabels <- if (n_u > 0) paste0('C', 1:n_u)
       Labels <- c(Vlabels, Tlabels, WZlabels, Clabels)
       colnames(data) <- Labels
 
       # Labels for Q-nodes
-      if (r > 0) {
+      if (n_q > 0) {
         if(is.null(Qlabels)) {
-          Qlabels <- (p + q + 1):(p + q + r)
+          Qlabels <- (n_t + n_v + 1):(n_t + n_v + n_q)
         }
         else if (!is.numeric(Qlabels)) {
           stop("'Qlabels' must be numeric vector if 'data' columns are unnamed")
@@ -52,7 +52,7 @@ check.mrgn.args <- function() {
       Labels <- make.unique(Labels)
       colnames(data) <- Labels
       if(is.null(Qlabels)) {
-        Qlabels <- (p + q + 1):(p + q + r)
+        Qlabels <- (n_t + n_v + 1):(n_t + n_v + n_q)
       }
       else if (!is.numeric(Qlabels)) {
         if (is.character(Qlabels)) {
@@ -60,8 +60,8 @@ check.mrgn.args <- function() {
           Qlabels <- sapply(Qlabels,
                             FUN = grep,
                             x = Labels)
-          if (any(Qlabels <= (p + q))) {
-            stop("'Qlabels' must index columns other than V and T-nodes (first p+q columns in data)")
+          if (any(Qlabels <= (n_t + n_v))) {
+            stop("'Qlabels' must index columns other than V and T-nodes (first n_t+n_v columns in data)")
           }
         }
         else {
@@ -78,52 +78,54 @@ check.mrgn.args <- function() {
         stop ("Each element of 'confounders' must be a numeric vector")
       n.con <- length(confounders)
       if (n.con == 0) {
-        if (verbose & u > 0)
-          warning(paste0("      # ", u, " confounders supplied, but none is associated with a node. \n"))
+        if (verbose & n_u > 0)
+          warning(paste0("      # ", n_u, " confounders supplied, but none is associated with a node. \n"))
         confounders <- NULL
       }
       else if (n.con == 1) {
         stopifnot(all(!is.na(confounders[[1]])), all(floor(confounders[[1]]) == confounders[[1]]))
-        # if (any(confounders[[1]] > q & confounders[[1]] <= nb.nodes) | any(confounders[[1]] > m))
+        # if (any(confounders[[1]] > n_v & confounders[[1]] <= nb.nodes) | any(confounders[[1]] > m))
         if (any(confounders[[1]] > m))
           stop ("Column index out ot bound in 'confounders'")
-        confounders[1:p] <- confounders[1]
+        confounders[1:n_t] <- confounders[1]
       }
-      else if (n.con == p) {
+      else if (n.con == n_t) {
         confs.range <- unlist(confounders, recursive = TRUE, use.names = FALSE)
+        if (length(confs.range)) {
         stopifnot(all(!is.na(confs.range)), all(floor(confs.range) == confs.range))
         confs.range <- range(confs.range)
-        # if ((confs.range[1] > q & confs.range[1] <= nb.nodes) | confs.range[2] > m)
+        # if ((confs.range[1] > n_v & confs.range[1] <= nb.nodes) | confs.range[2] > m)
         if(confs.range[2] > m)
           stop ("Column index out of bound in 'confounders'")
+        }
         rm(confs.range)
       }
       else
         stop (paste0("The argument 'confounders' must be a list of length one or ",
-                     p, ". \n"))
+                     n_t, ". \n"))
     }
     else {
-      if (verbose & u > 0)
-        warning(paste0("      # ", u, " confounders supplied, but none is associated with a node. \n"))
+      if (verbose & n_u > 0)
+        warning(paste0("      # ", n_u, " confounders supplied, but none is associated with a node. \n"))
       confounders <- NULL
     }
-    Adj <- as.matrix(Adj)
+    adjacency <- as.matrix(adjacency)
 
     # Check the supplied adjacency matrix
-    stopifnot(is.adjacency.matrix(Adj))
-    if (NCOL(Adj) %in% c(nb.nodes, m)) {
-      if (NCOL(Adj) == m)
-        Adj <- Adj[1:nb.nodes, 1:nb.nodes]
+    stopifnot(is.adjacency.matrix(adjacency))
+    if (NCOL(adjacency) %in% c(nb.nodes, m)) {
+      if (NCOL(adjacency) == m)
+        adjacency <- adjacency[1:nb.nodes, 1:nb.nodes]
     }
     else
-      stop("The size of argument 'Adj' is not consistent with arguments 'data', 'p', 'q', 'r', and 'u'.")
+      stop("The size of argument 'adjacency' is not consistent with arguments 'data', 'n_t', 'n_v', 'n_q', and 'n_u'.")
 
     # Orient all V -- T edges as V --> T
-    Adj[(1+q):nb.nodes, 1:q] <- 0
-    dimnames(Adj) <- list(Labels[1:nb.nodes], Labels[1:nb.nodes])
+    adjacency[(1+n_v):nb.nodes, 1:n_v] <- 0
+    dimnames(adjacency) <- list(Labels[1:nb.nodes], Labels[1:nb.nodes])
 
     # Save the input adjacency matrix
-    Adj0 <- Adj
+    Adj0 <- adjacency
 
     # Check FDR control arguments if required
     stopifnot(is.character(FDRcontrol))
@@ -148,6 +150,6 @@ check.mrgn.args <- function() {
     if (is.null(maxiter))
       maxiter <- choose(nb.nodes, 3)
 
-    Tlabels <- (q+1):(p+q)
+    Tlabels <- (n_v+1):(n_t+n_v)
   })
 }

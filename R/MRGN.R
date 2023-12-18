@@ -15,18 +15,23 @@
 #' @param Qlabels labels indicating columns of \code{data} which are
 #' \code{Q}-nodes (common children or intermediate variables).
 #'
-#' @param confounders a list of length \code{p} giving the set of known confounders
-#' for each phenotype, as returned by \link{get.conf.sets} with the option
-#' \code{return.for.trios = FALSE}.
+#' @param n_v,n_t,n_q,n_u integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
+#' in \code{data}.
 #'
-#' @param Adj input adjacency matrix (binary)
+#' @param confounders a list of length \code{n_t} giving the set of known/selected
+#' confounders for each phenotype, as returned by \link{get.conf.sets}.
+#'
+#' @param adjacency input adjacency matrix (binary)
 #'
 #' @param stringent logical, should edges not appearing in \code{'M1'} and
 #' \code{'M2'} trio structures be dropped during adjacency matrix update?
 #' Passed to \link{update.adjacency.matrix}.
 #'
+#' @param cl,chunk.size optional arguments for parallel computing, passed to
+#' \link{parLapply}{parallel} (when supplied).
 #'
-#' @seealso \link{infer.trio} for inferring edges in small networks of one
+#'
+#' @seealso \link{infer.trio}{MRGN} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
 #' @export MRGN
@@ -34,6 +39,40 @@
 #' @importFrom MRGN class.vec
 #' @importFrom MRGN infer.trio
 #' @importFrom MRGN adjust.q
+#'
+#'
+#' @examples
+#' ## Run MRGN on the 'networkA11' data
+#' library (MRGNgeneral)
+#' data ('networkA11')  # .rda structure with simulated data
+#' data ('confsetsA11') #  obtained from get.conf.sets() on 'networkA11'
+#'
+#' # Build a graph skeleton
+#' Adjacency0 <- get.initial.skeleton (data = networkA11$data,
+#'                                     n_v = networkA11$dims$n_v,
+#'                                     n_t = networkA11$dims$n_t,
+#'                                     threshold_v = 0.2,
+#'                                     threshold_m = 0.05,
+#'                                     conf.sets = confsetsA11)
+#'
+#'
+#' # Run MRGN: running time ~ 5 minutes!
+#' \dontrun{
+#' mrgninferA11 <- MRGN(data = networkA11$data,
+#'                      n_v = networkA11$dims$n_v,
+#'                      n_t = networkA11$dims$n_t,
+#'                      Qlabels = confsetsA11$WZindices,
+#'                      n_q = length(confsetsA11$WZindices),
+#'                      n_u = networkA11$dims$n_w + networkA11$dims$n_z +
+#'                        networkA11$dims$n_u + networkA11$dims$n_k +
+#'                        networkA11$dims$n_i - length(confsetsA11$WZindices),
+#'                      adjacency = Adjacency0,
+#'                      confounders = confsetsA11$confounders,
+#'                      alpha = 0.01,
+#'                      FDRcontrol = 'bonferroni',
+#'                      fdr = 0.05,
+#'                      verbose = TRUE)
+#' }
 
 # We have four blocks of columns in data: V, T, (I&C) and confounders
 
@@ -48,32 +87,32 @@
 
 # To do: make dropped.edges and added.edges lists, so as to save the edges dropped/added at each iteration
 
-MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes, r Intermediate&Common_Child and 'u' confounders
-                         scale.data = TRUE,
-                         Qlabels = NULL, # column number or names of W,Z-nodes in data
-                         p, q, r = length(Qlabels),
-                         u = m - p - q - r,
-                         confounders = list(), # a list of length p giving the set of confounders for each phenotype
-                         Adj, # a (p+q+r)-by-(p+q+r) adjacency matrix of an undirected acyclic graph (zeros on diagonal).
-                         is.CNA = FALSE, # logical indicating if a genetic variant is a copy number alteration.
-                         alpha = 0.01, # in (0, .5) type I error rate for individual tests, in the open (0, .5)
-                         use.perm = TRUE, # See infer.trio
-                         gamma = 0.05, #
-                         nperms = 10000, #
-                         FDRcontrol = c("bonferroni", "qvalue", "none"),
-                         fdr = 0.05, # in (0, .5) False discovery rate for all trio analyses at one iteration, in the open (0, .5)
-                         lambda = NULL, # The value of the tuning parameter for q-value estimation
-                         lambda.step = 0.05, # in (0, .1); Used to initialize "lambda" when lambda = NULL
-                         pi0.meth = c("bootstrap", "smoother"),
-                         stringent = TRUE,
-                         analyse.triplets = TRUE,
-                         solve.conflicts = TRUE, # Just used for testing, to be removed?
-                         method = "naive",
-                         maxiter = NULL,
-                         parallel = FALSE,
-                         cl = parallel:::getDefaultCluster(),
-                         chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
-                         verbose = 0L) {
+MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenotypes, n_q Intermediate&Common_Child and 'n_u' confounders
+                  scale.data = TRUE,
+                  Qlabels = NULL, # column number or names of W,Z-nodes in data
+                  n_t, n_v, n_q = length(Qlabels),
+                  n_u = m - n_t - n_v - n_q,
+                  confounders = list(), # a list of length n_t giving the set of confounders for each phenotype
+                  adjacency, # a (n_t+n_v+n_q)-by-(n_t+n_v+n_q) adjacency matrix of an undirected acyclic graph (zeros on diagonal).
+                  is.CNA = FALSE, # logical indicating if a genetic variant is a copy number alteration.
+                  alpha = 0.01, # in (0, .5) type I error rate for individual tests, in the open (0, .5)
+                  use.perm = TRUE, # See infer.trio
+                  gamma = 0.05, #
+                  nperms = 10000, #
+                  FDRcontrol = c("bonferroni", "qvalue", "none"),
+                  fdr = 0.05, # in (0, .5) False discovery rate for all trio analyses at one iteration, in the open (0, .5)
+                  lambda = NULL, # The value of the tuning parameter for n_v-value estimation
+                  lambda.step = 0.05, # in (0, .1); Used to initialize "lambda" when lambda = NULL
+                  pi0.meth = c("bootstrap", "smoother"),
+                  stringent = TRUE,
+                  analyse.triplets = TRUE,
+                  solve.conflicts = TRUE, # Just used for testing, to be removed?
+                  method = "conservative",
+                  maxiter = NULL,
+                  parallel = FALSE,
+                  cl = parallel:::getDefaultCluster(),
+                  chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
+                  verbose = 0L) {
   # ============================================================================
   # Save the call to MRGN
   # ----------------------------------------------------------------------------
@@ -106,7 +145,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
 
   # ============================================================================
   ### Save the current Adjacency matrix
-  old.Adj <- Adj
+  old.adjacency <- adjacency
 
   # Initialize some outputs as empty vector/lists
   trio.analysis <- NULL
@@ -128,9 +167,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
   if (verbose) {
     cat("\n      # Generating an initial list of trios with genetic variants. \n")
   }
-  trio.set <- enumerate.trios(i = 1:q, Adj = Adj,
-                              p = p, q = q,
-                              r = r,
+  trio.set <- enumerate.trios(i = 1:n_v, adjacency = adjacency,
+                              n_t = n_t, n_v = n_v, n_q = n_q,
                               VTT = TRUE,
                               cl = cl,
                               chunk.size = chunk.size)
@@ -147,7 +185,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                " generated. \n"))
   }
 
-  ## Step 3.2-3.3: Determine the directed structure for each trio and update Adj
+  ## Step 3.2-3.3: Determine the directed structure for each trio and update adjacency
   if (nb.trios > 0) {
     ## Step 3.2: Determine the directed structure for each trio
     if (verbose)
@@ -155,7 +193,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
     trio.analysis <- analyse.trio.set (trio.set, nb.trios = nb.trios, Qlabels = Qlabels,
                                        alpha = alpha, FDRcontrol = FDRcontrol,
                                        fdr = fdr, lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                       data = data, confounders = confounders, p = p, q = q,
+                                       data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                        use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                        nperms = nperms, verbose = verbose,
                                        cl = cl, chunk.size = chunk.size)
@@ -166,7 +204,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                  if (nb.trios == 1) "direction for one [Vi,Tj,Tk] trio. \n"
                  else "directions for ", nb.trios, " [Vi,Tj,Tk] trios. \n"))
     }
-    update.object <- update.adjacency.matrix (Adj = Adj, p = p, q = q, r = r,
+    update.object <- update.adjacency.matrix (adjacency = adjacency, n_t = n_t, n_v = n_v, n_q = n_q,
                                               trio.set = trio.set,
                                               inferred.models = trio.analysis$Inferred.Model,
                                               stringent = stringent, add.edges = TRUE,
@@ -198,19 +236,19 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                  " added into the network. \n"))
     }
 
-    # Save the new Adj
-    Adj <- update.object$Adj
+    # Save the new adjacency
+    adjacency <- update.object$adjacency
   }
 
   ## Step 3.4: Generating an initial list of trios involving a genetic variant and a Q-node
-  if (r > 0) {
+  if (n_q > 0) {
     if (verbose) {
       cat("\n      # Generating an initial list of [Vi,Tj,Qk] trios. \n")
     }
-    Qtrio.set <- enumerate.trios(i = 1:q,
-                                 Adj = Adj,
-                                 p = p, q = q,
-                                 r = r,
+    Qtrio.set <- enumerate.trios(i = 1:n_v,
+                                 adjacency = adjacency,
+                                 n_t = n_t, n_v = n_v,
+                                 n_q = n_q,
                                  VTT = FALSE,
                                  cl = cl, chunk.size = chunk.size)
     Qtrio.set <- do.call('rbind', Qtrio.set)
@@ -233,7 +271,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
       Qtrio.analysis <- analyse.trio.set (Qtrio.set, nb.trios = nb.Qtrios, Qlabels = Qlabels,
                                           alpha = alpha, FDRcontrol = FDRcontrol,
                                           fdr = fdr, lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                          data = data, confounders = confounders, p = p, q = q,
+                                          data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                           use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                           nperms = nperms, verbose = verbose,
                                           cl = cl, chunk.size = chunk.size)
@@ -244,8 +282,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                    if (nb.Qtrios == 1) "direction for one [Vi,Tj,Qk] trio. \n"
                    else "directions for ", nb.Qtrios, " [Vi,Tj,Qk] trios. \n"))
       }
-      Qupdate.object <- update.adjacency.matrix (Adj = Adj,
-                                                 p = p, q = q, r = r,
+      Qupdate.object <- update.adjacency.matrix (adjacency = adjacency,
+                                                 n_t = n_t, n_v = n_v, n_q = n_q,
                                                  trio.set = Qtrio.set,
                                                  inferred.models = Qtrio.analysis$Inferred.Model,
                                                  stringent = stringent, add.edges = FALSE,
@@ -254,21 +292,21 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                  cl = cl, chunk.size = chunk.size)
       dropped.edges <- Qupdate.object$dropped.edges
 
-      # Update Adj
-      Adj <- Qupdate.object$Adj
+      # Update adjacency
+      adjacency <- Qupdate.object$adjacency
     }
   }
   # ----------------------------------------------------------------------------
 
   ## Iterate Step 3 each time new edges are added (and the network is not fully directed)
   # Indicator of the presence of undirected edges in the updated network
-  Not.fully.directed <- any(rowSums((Adj + t(Adj)) == 2) > 0)
+  Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
 
   # Number of [Vi,Tj,Tk] trios generated at each iteration
   iter.nb.trios <- nb.trios
 
   # Number of [Vi,Tj,Qk] trios generated at each iteration
-  iter.nb.Qtrios <- if (r > 0) nb.Qtrios
+  iter.nb.Qtrios <- if (n_q > 0) nb.Qtrios
 
   # Initialize the number of new trios to nb.trios
   nb.new.trios <- nb.trios
@@ -281,8 +319,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
     new.trio.set <- enumerate.new.trios (trio.set = trio.set,
                                          new.edges = c(rep(FALSE, nb.trios - nb.new.trios),
                                                        new.edges),
-                                         old.Adj = old.Adj, Adj = Adj,
-                                         p = p, q = q, r = r,
+                                         old.adjacency = old.adjacency, adjacency = adjacency,
+                                         n_t = n_t, n_v = n_v, n_q = n_q,
                                          VTT = TRUE,
                                          cl = cl, chunk.size = chunk.size)
 
@@ -305,7 +343,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
     }
 
     # Save the current Adjacency matrix (at iter)
-    old.Adj <- Adj
+    old.adjacency <- adjacency
 
     # iteration counter
     iter <- iter + 1
@@ -319,7 +357,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                            alpha = alpha, FDRcontrol = FDRcontrol,
                                            fdr = fdr, lambda = lambda,
                                            lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                           data = data, confounders = confounders, p = p, q = q,
+                                           data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                            use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                            nperms = nperms, verbose = verbose,
                                            cl = cl, chunk.size = chunk.size)
@@ -330,8 +368,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                  if (nb.new.trios == 1) "direction for one [Vi,Tj,Tk] trio. \n"
                  else "directions for ", nb.new.trios, " [Vi,Tj,Tk] trios. \n"))
     }
-    update.object <- update.adjacency.matrix (Adj = Adj,
-                                              p = p, q = q, r = r,
+    update.object <- update.adjacency.matrix (adjacency = adjacency,
+                                              n_t = n_t, n_v = n_v, n_q = n_q,
                                               trio.set = new.trio.set,
                                               inferred.models = new.trio.analysis$Inferred.Model,
                                               stringent = stringent, add.edges = TRUE,
@@ -366,19 +404,19 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                  " added into the network. \n"))
     }
 
-    # Save the new Adj
-    Adj <- update.object$Adj
+    # Save the new adjacency
+    adjacency <- update.object$adjacency
 
     ## Step 3.4: Generating a list of trios involving a genetic variant and a Q-node
-    if (r > 0) {
+    if (n_q > 0) {
       if (verbose) {
         cat("\n      # Generating additional [Vi,Tj,Qk] trios. \n")
       }
 
       new.Qtrio.set <- enumerate.new.trios (trio.set = new.trio.set,
                                             new.edges = new.edges,
-                                            old.Adj = old.Adj, Adj = Adj,
-                                            p = p, q = q, r = r,
+                                            old.adjacency = old.adjacency, adjacency = adjacency,
+                                            n_t = n_t, n_v = n_v, n_q = n_q,
                                             VTT = FALSE,
                                             Qtrio.set = Qtrio.set,
                                             cl = cl, chunk.size = chunk.size)
@@ -401,7 +439,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
         new.Qtrio.analysis <- analyse.trio.set (new.Qtrio.set, nb.trios = nb.new.Qtrios, Qlabels = Qlabels,
                                                 alpha = alpha, FDRcontrol = FDRcontrol,
                                                 fdr = fdr, lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                                data = data, confounders = confounders, p = p, q = q,
+                                                data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                                 use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                                 nperms = nperms, verbose = verbose,
                                                 cl = cl, chunk.size = chunk.size)
@@ -412,8 +450,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                      if (nb.new.Qtrios == 1) "direction for one [Vi,Tj,Qk] trio. \n"
                      else "directions for ", nb.new.Qtrios, " [Vi,Tj,Qk] trios. \n"))
         }
-        Qupdate.object <- update.adjacency.matrix (Adj = Adj,
-                                                   p = p, q = q, r = r,
+        Qupdate.object <- update.adjacency.matrix (adjacency = adjacency,
+                                                   n_t = n_t, n_v = n_v, n_q = n_q,
                                                    trio.set = new.Qtrio.set,
                                                    inferred.models = new.Qtrio.analysis$Inferred.Model,
                                                    stringent = stringent, add.edges = FALSE,
@@ -422,8 +460,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                    cl = cl, chunk.size = chunk.size)
         dropped.edges <- Qupdate.object$dropped.edges
 
-        # Update Adj
-        Adj <- Qupdate.object$Adj
+        # Update adjacency
+        adjacency <- Qupdate.object$adjacency
 
         # Save the additional trios in 'Qtrio.set'
         Qtrio.set <- rbind(Qtrio.set, new.Qtrio.set)
@@ -449,21 +487,21 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
     nb.trios <- nb.trios + nb.new.trios
 
     # Indicator of the presence of undirected edges in the updated network
-    Not.fully.directed <- any(rowSums((Adj + t(Adj)) == 2) > 0)
+    Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
   }
 
   ### Step 4: List trios involving no genetic variant and direct related edges
   # ----------------------------------------------------------------------------
 
-  if (all(c(Not.fully.directed, analyse.triplets, p + r >= 3))) { # p >= 3 means at least one triplet can be formed
+  if (all(c(Not.fully.directed, analyse.triplets, n_t + n_q >= 3))) { # n_t >= 3 means at least one triplet can be formed
     ## Step 4.1: Form [Ti,Tj,Tk]  trios
     if (verbose) {
       cat("\n      # Generating an initial list of triplets involving only T-nodes. \n")
     }
-    triplet.set <- enumerate.triplets (Adj,
-                                       p = p,
-                                       q = q,
-                                       r = r,
+    triplet.set <- enumerate.triplets (adjacency,
+                                       n_t = n_t,
+                                       n_v = n_v,
+                                       n_q = n_q,
                                        TTT = TRUE,
                                        cl = cl,
                                        chunk.size = chunk.size)
@@ -494,7 +532,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                lambda = lambda, lambda.step = lambda.step,
                                                pi0.meth = pi0.meth,
                                                data = data, confounders = confounders,
-                                               p = p, q = q, verbose = verbose,
+                                               n_t = n_t, n_v = n_v, verbose = verbose,
                                                cl = cl, chunk.size = chunk.size)
 
       # Step 4.3: Update the adjacency matrix
@@ -504,8 +542,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
             else paste0("      # Updating the adjacency matrix: adding edge directions for ",
                         nb.triplets, " [Ti,Tj,Tk] trios. \n"))
       }
-      update.object <- update.adjacency.matrix (Adj = Adj,
-                                                q = q,
+      update.object <- update.adjacency.matrix (adjacency = adjacency,
+                                                n_v = n_v,
                                                 trio.set = triplet.set,
                                                 inferred.models = triplet.analysis$Inferred.Model,
                                                 stringent = stringent,
@@ -517,18 +555,18 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                 cl = cl, chunk.size = chunk.size)
       dropped.edges <- update.object$dropped.edges
 
-      # Update Adj
-      Adj <- update.object$Adj
+      # Update adjacency
+      adjacency <- update.object$adjacency
     }
 
     # Step 4.4: Form trio with T-nodes and Q-nodes
-    if (r > 0) {
+    if (n_q > 0) {
       if (verbose) {
         cat("\n      # Generating an initial list of [Ti,Tj,Qk] trios. \n")
       }
-      Qtriplet.set <- enumerate.triplets(Adj = Adj,
-                                         p = p, q = q,
-                                         r = r,
+      Qtriplet.set <- enumerate.triplets(adjacency = adjacency,
+                                         n_t = n_t, n_v = n_v,
+                                         n_q = n_q,
                                          TTT = FALSE,
                                          cl = cl, chunk.size = chunk.size)
 
@@ -558,7 +596,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                   lambda = lambda, lambda.step = lambda.step,
                                                   pi0.meth = pi0.meth,
                                                   data = data, confounders = confounders,
-                                                  p = p, q = q, verbose = verbose,
+                                                  n_t = n_t, n_v = n_v, verbose = verbose,
                                                   cl = cl, chunk.size = chunk.size)
 
         # Step 4.3: Update the adjacency matrix
@@ -568,8 +606,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
               else paste0("      # Updating the adjacency matrix: adding edge directions for ",
                           nb.Qtriplets, " [Ti,Tj,Qk] trios. \n"))
         }
-        Qupdate.object <- update.adjacency.matrix (Adj = Adj,
-                                                   q = q,
+        Qupdate.object <- update.adjacency.matrix (adjacency = adjacency,
+                                                   n_v = n_v,
                                                    trio.set = Qtriplet.set,
                                                    inferred.models = Qtriplet.analysis$Inferred.Model,
                                                    stringent = stringent,
@@ -581,26 +619,26 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                    cl = cl, chunk.size = chunk.size)
         dropped.edges <- Qupdate.object$dropped.edges
 
-        # Update Adj
-        Adj <- Qupdate.object$Adj
+        # Update adjacency
+        adjacency <- Qupdate.object$adjacency
       }
     }
 
     ## Iterate Step 4
     # Indicator of the presence of undirected edges in the updated network
-    Not.fully.directed <- any(rowSums((Adj + t(Adj)) == 2) > 0)
+    Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
 
     # Repeat step 4: re-evaluate the type of each triplet with two edges, and one undirected.
-    # Re-interpret the result of triplet analysis, and update Adj.
+    # Re-interpret the result of triplet analysis, and update adjacency.
     # Number of [Vi,Tj,Tk] trios generated at each iteration
     iter.nb.triplets <- nb.triplets
     new.triplet.set <- triplet.set
     new.triplet.analysis <- triplet.analysis
     other.triplets <- if (nb.triplets) new.triplet.analysis$Inferred.Model == "Other" else FALSE
     new_directions <- TRUE
-    if (r > 0) {
+    if (n_q > 0) {
       # Number of [Vi,Tj,Qk] trios generated at each iteration
-      iter.nb.Qtriplets <- if (r > 0) nb.Qtriplets
+      iter.nb.Qtriplets <- if (n_q > 0) nb.Qtriplets
       new.Qtriplet.set <- Qtriplet.set
       new.Qtriplet.analysis <- Qtriplet.analysis
       other.Qtriplets <- if (nb.Qtriplets) new.Qtriplet.analysis$Inferred.Model == "Other" else FALSE
@@ -622,9 +660,9 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
         # Save old triplet types
         old.types <- new.triplet.set[other.triplets, 4]
 
-        # Find new triplet types based on the updated Adj
+        # Find new triplet types based on the updated adjacency
         new.triplet.set <- get.new.triplet.type (triplet.set = new.triplet.set[other.triplets,, drop = FALSE],
-                                                 Adj = Adj,
+                                                 adjacency = adjacency,
                                                  cl = cl,
                                                  chunk.size = chunk.size)
         keep.new.triplets <- (new.triplet.set[,4] <= 2) & (new.triplet.set[,4] != old.types)
@@ -661,8 +699,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                 else paste0("      # Updating the adjacency matrix: adding edge directions for ",
                             nb.new.triplets, " [Ti,Tj,Tk] trios. \n"))
           }
-          update.object <- update.adjacency.matrix (Adj = Adj,
-                                                    q = q,
+          update.object <- update.adjacency.matrix (adjacency = adjacency,
+                                                    n_v = n_v,
                                                     trio.set = new.triplet.set,
                                                     inferred.models = new.triplet.analysis$Inferred.Model,
                                                     stringent = stringent,
@@ -674,8 +712,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                     cl = cl, chunk.size = chunk.size)
           dropped.edges <- update.object$dropped.edges
 
-          # Update Adj
-          Adj <- update.object$Adj
+          # Update adjacency
+          adjacency <- update.object$adjacency
 
           # Indicator of the presence of triplets of type "Other"
           other.triplets <- new.triplet.analysis$Inferred.Model == "Other"
@@ -693,7 +731,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
 
       }
 
-      if (r > 0 & any(other.Qtriplets)) {
+      if (n_q > 0 & any(other.Qtriplets)) {
         ## Step 3.4: Extract [Ti,Tj,Qk] trios to be updated
         if (verbose) {
           cat("\n      # Identifying updateable [Ti,Tj,Qk] trios. \n")
@@ -702,9 +740,9 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
         # Save old triplet types
         old.Qtypes <- new.Qtriplet.set[other.Qtriplets, 4]
 
-        # Find new triplet types based on the updated Adj
+        # Find new triplet types based on the updated adjacency
         new.Qtriplet.set <- get.new.triplet.type (triplet.set = new.Qtriplet.set[other.Qtriplets,, drop = FALSE],
-                                                  Adj = Adj,
+                                                  adjacency = adjacency,
                                                   cl = cl,
                                                   chunk.size = chunk.size)
         keep.new.Qtriplets <- (new.Qtriplet.set[,4] <= 2) & (new.Qtriplet.set[,4] != old.Qtypes)
@@ -742,8 +780,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                 else paste0("      # Updating the adjacency matrix: adding edge directions for ",
                             nb.new.Qtriplets, " [Ti,Tj,Qk] trios. \n"))
           }
-          update.object <- update.adjacency.matrix (Adj = Adj,
-                                                    q = q,
+          update.object <- update.adjacency.matrix (adjacency = adjacency,
+                                                    n_v = n_v,
                                                     trio.set = new.Qtriplet.set,
                                                     inferred.models = new.Qtriplet.analysis$Inferred.Model,
                                                     stringent = stringent,
@@ -755,8 +793,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
                                                     cl = cl, chunk.size = chunk.size)
           dropped.edges <- update.object$dropped.edges
 
-          # Update Adj
-          Adj <- update.object$Adj
+          # Update adjacency
+          adjacency <- update.object$adjacency
 
           # Save the additional trios in 'Qtrio.set'
           Qtriplet.set <- rbind(Qtriplet.set, new.Qtriplet.set)
@@ -776,7 +814,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
       iter <- iter + 1
 
       # Indicator of the presence of undirected edges in the updated network
-      Not.fully.directed <- any(rowSums((Adj + t(Adj)) == 2) > 0)
+      Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
 
       Not.stop <- Not.fully.directed & any(c(other.triplets, other.Qtriplets))
     }
@@ -793,8 +831,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
 
   # ======================================================================================
   structure(
-    list(Adj = structure(Adj, class = 'adjacency.matrix'),
-         Adj0 = structure(Adj0, class = 'adjacency.matrix'),
+    list(adjacency = structure(adjacency, class = 'adjacency.matrix'),
          VTTtrio.set = trio.set,
          iter.nb.VTTtrios = iter.nb.trios,
          VTTtrio.analysis = trio.analysis,
@@ -809,34 +846,40 @@ MRGN <- function (data, # input n-by-m data matrix: 'q' Variants, 'p' Phenotypes
          TTQtrio.analysis = Qtriplet.analysis,
          added.edges = added.edges,
          dropped.edges = dropped.edges,
+         input.adjacency = structure(Adj0, class = 'adjacency.matrix'),
          Qlabels = Qlabels, niter = iter,
          cl = cl, chunk.size = chunk.size,
          call = mrgncl),
-    class = "MRGNg")
+    class = "MRGN")
 }
 
 
-# A brief print method for MRGN output (class 'MRGNg')
+# A brief print method for MRGN output (class 'MRGN')
 # Issue with the count of edges: not consistent with graphNEL result
 # when there are some undirected edges
-print.MRGNg <- function (x, TTonly = FALSE, format = "adjacency", ...) {
-  p <- eval(x$call$p)
-  q <- eval(x$call$q)
-  r <- if (TTonly) 0 else eval(x$call$r)
-  Adj <- as.matrix(x$Adj[1:(p+q+r), 1:(p+q+r)])
+# @exportS3Method print MRGN
+#
+# Not working: save arguments instead of the call. The call is only useful when extracted in the environment it was made.
+print.MRGN <- function (x, TTonly = FALSE, format = "adjacency",
+                        digits = max(3, getOption("digits") - 3),
+                        ...) {
+  n_t <- eval(x$call$n_t)
+  n_v <- eval(x$call$n_v)
+  n_q <- if (TTonly) 0 else eval(x$call$n_q)
+  adjacency <- as.matrix(x$adjacency[1:(n_t+n_v+n_q), 1:(n_t+n_v+n_q)])
 
   switch(format,
          graphNEL = {
-           print(as(Adj, "graphNEL"), ...)
+           print(as(adjacency, "graphNEL"), digits = digits, ...)
          },
          igraph = { # igraph object
-           print(igraph::graph_from_adjacency_matrix(Adj), ...)
+           print(igraph::graph_from_adjacency_matrix(adjacency), digits = digits, ...)
          },
          {
            cat("\nCall:  ", paste(deparse(x$call), sep = "\n", collapse = "\n"),
                "\n\n", sep = "")
 
-           #AugAdj <- Adj + t(Adj)
+           #AugAdj <- adjacency + t(adjacency)
            #AugAdj[upper.tri(AugAdj)] <- 0
 
            #DirEdges <- which(AugAdj == 1, arr.ind = TRUE)
@@ -845,18 +888,18 @@ print.MRGNg <- function (x, TTonly = FALSE, format = "adjacency", ...) {
            #NROW(DirEdges)
            #NROW(UndirEdges)
 
-           EdgeDirCount <- Adj[lower.tri(Adj)] + Adj[upper.tri(Adj)]
+           EdgeDirCount <- adjacency[lower.tri(adjacency)] + adjacency[upper.tri(adjacency)]
            unidir <- EdgeDirCount == 1
            nb.uni <- sum(unidir)
            bidir <- EdgeDirCount == 2
            nb.bi <- sum(bidir)
            nb.edges <- nb.uni + nb.bi
            cat(paste0(" MRGN Inferred a Direct Acyclic Graph with: \n"))
-           cat(paste0("    ", p+q+r, " nodes \n"))
-           cat(paste0("        ", q, " variants (V-nodes) \n"))
-           cat(paste0("        ", p, " genes (T-nodes) \n"))
-           if (r > 0)
-             cat(paste0("        ", r, " intermadiate variables or common children (Q-nodes) \n"))
+           cat(paste0("    ", n_t+n_v+n_q, " nodes \n"))
+           cat(paste0("        ", n_v, " variants (V-nodes) \n"))
+           cat(paste0("        ", n_t, " genes (T-nodes) \n"))
+           if (n_q > 0)
+             cat(paste0("        ", n_q, " intermadiate variables or common children (Q-nodes) \n"))
            if (nb.uni > 0 & nb.bi > 0)
              cat(paste0("    ", nb.edges, " edges \n"))
            if (nb.uni > 0) {

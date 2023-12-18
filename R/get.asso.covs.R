@@ -1,7 +1,7 @@
 ## Perform q value correction, or p-value adjustment to select confounding variables
 # if required (code adapted from Jarred's 'get.conf.matrix' function)
 
-get.asso.covs <- function(n_t,     # Number of focal variables we are selection confounding variables for (T-nodes)
+get.asso.covs <- function(n_t,     # Number of focal variables we are selecting confounding variables for (T-nodes)
                           p.mat,   # matrix of p-values
                           symmetric = FALSE,
                           FDRcontrol, adjust_by,

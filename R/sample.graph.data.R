@@ -5,6 +5,8 @@
 #' The number of \code{V}-nodes is specified for each \code{T}-node, or sampled
 #' from a count distribution. Each \code{V}-node is only related to only one \code{T}-node.
 #'
+#' @param seed scalar integer, seed for reproducibility of random number generation.
+#'
 #' @export sample.graph.data
 #'
 # Import 'find.parents' from MRGN when MRGN export it.
@@ -22,64 +24,80 @@
 # one of "small-world", "scale-free" or "random graph"
 # 'method' is passed to 'pcalg::randDAG',
 # one of "regular", "watts", "er", "power", "bipartite", "barabasi", "geometric", or "interEr"
-#'
+#
 # Important change on Oct.-12-2023: reordered variables as V, T, W, Z, U, K (old order: V, T, K, U, W, Z)
 # The order of elements of 'conf.num.vec' has been accordingly changed.
+# Important change on Dec-06-2023: Adding I-nodes: independent confounding variables
 
-sample.graph.data <- function (number.of.T,
-                            number.of.V.T = 1, # numeric vector of the numbers of V-nodes per T-node, or its average
-                            family.number.of.V.T = NULL, # distribution of the numbers of V-nodes per T-node, number.of.V.T is then an average
-                            conf.num.vec = rep(0, 4), # c("W","Z", "U","K")
-                            graph_type = "scale-free", # not used when 'method' is supplied
-                            method,
-                            degree = 3,
-                            connection_prob = 0.05, # not used now
-                            mixed = "None", # not used now
-                            theta = .5,
-                            b0.1 = 0,
-                            b.snp = 1,
-                            b.med = 0.8 * b.snp,
-                            sd.1 = 1,
-                            neg.freq = 0.5,
-                            conf.coef.ranges = list(W = c(0.15,0.5),
-                                                    Z = c(1, 1.5),
-                                                    U = c(0.15,0.5),
-                                                    K = c(0.01, 0.1)),
-                            scale = FALSE,
-                            sample.size) {
+sample.graph.data <- function (n_t = 100,
+                               n_v.t = 1, # numeric vector of the numbers of V-nodes per T-node, or its average
+                               family.n_v = NULL, # distribution of the numbers of V-nodes per T-node, n_v.t is then an average
+                               conf.num.vec = c(W = 0, Z = 0, U = 200, K = 0, I = 100), # c("W","Z", "U","K", "I")
+                               graph_type = "scale-free", # ignored when 'method' is supplied
+                               method,
+                               degree = 3, # connection_prob = 0.05, mixed = "None", # not used now
+                               theta = .4,
+                               b0 = 0,
+                               b.snp = c(-0.5, 0.5), # b.v
+                               b.med = c(-0.8, 0.8), # b.t
+                               sigma = 0.1,
+                               neg.freq = 0.5,
+                               conf.coef.ranges = list(W = c(0.15, 0.5),
+                                                       Z = c(1, 1.5),
+                                                       U = c(0.15, 0.5),
+                                                       K = c(0.15, 0.5)),
+                               scale = FALSE,
+                               sample.size,
+                               seed = NULL) {
 
-  # Total number of nodes
-  if (is.numeric(number.of.V.T)) {
-    number.of.V.T = rep(number.of.V.T, length.out = number.of.T)
+  # Save random generator state to restitute it later
+  if(!is.null(seed)) {
+    saved.seed <- .Random.seed
+    set.seed(seed)
+  }
+  # Total number of nodes, except independent confounding variables
+  if (is.numeric(n_v.t)) {
+    n_v.t <- rep(n_v.t, length.out = n_t)
   }
   else {
-    stop("'number.of.V.T' must be numeric")
+    stop("'n_v.t' must be numeric")
   }
-  if (!is.null(family.number.of.V.T)) {
+  if (!is.null(family.n_v)) {
     stop("not yet implemented")
   }
-  number.of.V <- sum(number.of.V.T)
-  number.nodes <-  number.of.V + number.of.T + sum(conf.num.vec)
+  n_v <- sum(n_v.t)
+  stopifnot(is.numeric(conf.num.vec))
+  if (length(conf.num.vec) == 5) {
+    number.of.I <- conf.num.vec[5]
+    conf.num.vec <- conf.num.vec[1:4]
+  }
+  else if (length(conf.num.vec) == 4) {
+    number.of.I <- 0
+  }
+  else {
+    stop("'conf.num.vec' have four or five element")
+  }
+
+  number.nodes <- n_v + n_t + sum(conf.num.vec)
 
   # Initialize the adjacency matrix
   A <- matrix(0, nrow = number.nodes, ncol = number.nodes)
 
   # Create all confounding variable names
-  if(sum(conf.num.vec)>0){
-    conf.node.names = NULL
-    letter.id = c("W", "Z", "U", "K")
-    nz.letter.id = letter.id[which(conf.num.vec>0)]
-    conf.num.vec2 = conf.num.vec[which(conf.num.vec>0)]
+  conf.node.names <- NULL
+  if(sum(conf.num.vec)>0) {
+    letter.id <- c("W", "Z", "U", "K")
+    nz.letter.id <- letter.id[which(conf.num.vec>0)]
+    conf.num.vec2 <- conf.num.vec[which(conf.num.vec>0)]
     for(i in 1:length(conf.num.vec2)){
-      conf.node.names = append(conf.node.names,
-                               paste0(nz.letter.id[i], c(1:conf.num.vec2[i])))
+      conf.node.names <- append(conf.node.names,
+                                paste0(nz.letter.id[i], c(1:conf.num.vec2[i])))
     }
   }
-  else
-    conf.node.names = NULL
-  row.names(A) = colnames(A) = c(paste0("V", c(1:number.of.V)),
-                                 paste0("T", c(1:number.of.T)),
-                                 conf.node.names)
+
+  rownames(A) <- colnames(A) <- c(paste0("V", 1:n_v),
+                                  paste0("T", 1:n_t),
+                                  conf.node.names)
 
   # Create the 'method' argument for 'get.custom.graph' starting from 'graph_type'
   if (missing(method)) {
@@ -98,75 +116,88 @@ sample.graph.data <- function (number.of.T,
                           "interEr"))
 
   # Generate the graph skeleton and the effects
-  A = sim.graph.effects(Adj = A,
+  A <- sim.graph.effects(Adj = A,
                          b.snp = b.snp,
                          b.med = b.med,
-                         number.of.V.T = number.of.V.T,
-                         number.of.T = number.of.T,
+                         n_v.t = n_v.t,
+                         n_t = n_t,
                          conf.coef.ranges = conf.coef.ranges,
                          neg.freq = neg.freq,
                          degree = degree,
                          method = method)
 
   # Save the effects
-  effects.adj = A
+  effects.adj <- A
 
   # Convert effects matrix to adjacency matrix
-  A[A!=0] = 1
+  A[A!=0] <- 1
 
   # Create a graph object
-  igraph.obj = igraph::graph_from_adjacency_matrix(A)
+  igraph.obj <- igraph::graph_from_adjacency_matrix(A)
   graph.attr <- list(adjacency = A, effects.adj = effects.adj, igraph.obj = igraph.obj)
 
   # Initialize a data matrix
-  X = as.data.frame(matrix(0, nrow = sample.size, ncol = dim(graph.attr$adjacency)[2]))
-  colnames(X) = colnames(graph.attr$adjacency)
+  X <- as.data.frame(matrix(0, nrow = sample.size, ncol = dim(graph.attr$adjacency)[2]))
+  colnames(X) <- colnames(graph.attr$adjacency)
 
   # Get the topological ordering
-  topo.order = colnames(graph.attr$adjacency)[as.vector(igraph::topo_sort(graph.attr$igraph.obj))]
+  topo.order <- colnames(graph.attr$adjacency)[as.vector(igraph::topo_sort(graph.attr$igraph.obj))]
 
   # Simulate data for each node
   for(i in 1:length(topo.order)){
     #generate V nodes in topo order
-    location = match(topo.order[i], colnames(graph.attr$adjacency))
-    parent.list = find.parents(Adjacency = graph.attr$adjacency, location = location)
+    location <- match(topo.order[i], colnames(graph.attr$adjacency))
+    parent.list <- find.parents(Adjacency = graph.attr$adjacency, location = location)
 
     if(grepl("V", topo.order[i])){
-      X[,location] = c(sample(c(0, 1, 2), size = sample.size, replace = TRUE,
-                              prob = c((1 -theta)^2, 2 * theta * (1 - theta), theta^2)))
+      X[,location] <- c(sample(c(0, 1, 2), size = sample.size, replace = TRUE,
+                               prob = c((1 -theta)^2, 2 * theta * (1 - theta), theta^2)))
     }else{
       #catch nodes with no parents of any kind
       if(sum(unlist(lapply(parent.list, is.na)))==6){
-        X[, location] = stats::rnorm(n = sample.size, mean = b0.1, sd = sd.1)
+        X[, location] <- stats::rnorm(n = sample.size, mean = b0, sd = sigma)
       }else{
         #simulate all other types of nodes according to parental list, topo.order, and the effects adj
-        coefs = graph.attr$effects.adj[stats::na.omit(unlist(parent.list)), topo.order[i]]
-        Cond.vals = as.matrix(X[, stats::na.omit(unlist(parent.list))])
+        coefs <- graph.attr$effects.adj[stats::na.omit(unlist(parent.list)), topo.order[i]]
+        Cond.vals <- as.matrix(X[, stats::na.omit(unlist(parent.list))])
 
-   #     print(topo.order[i])
+        X[, location] <- stats::rnorm(n = sample.size, mean = (if (scale) 0 else b0) + Cond.vals %*% coefs, sd = sigma)
 
-#        if (topo.order[i] == "T24") {
-#          browser()
-#       }
-
-        X[, location] = stats::rnorm(n = sample.size, mean = (if (scale) 0 else b0.1) + Cond.vals %*% coefs, sd = sd.1)
+        # Scale each column to have marginal standard deviation sigma
         if (scale) {
-          X[, location] = sd.1 * X[, location] / sd(X[, location]) + b0.1
+          X[, location] <- sigma * X[, location] / sd(X[, location]) + b0
         }
       }
     }
   }
 
+  # Add independent confounding variables if required
+  if (number.of.I) {
+    Imat <- matrix(rnorm(sample.size * number.of.I, mean = 0, sd = sigma),
+                   nrow = sample.size, ncol = number.of.I)
+
+    colnames(Imat) <- paste0("I", 1:number.of.I)
+
+    X <- cbind(X, Imat)
+  }
+
+  # Restitute random generator state
+  if(!is.null(seed)) {
+    .Random.seed <- saved.seed
+  }
+
   return(list(data = X,
-              dims = list(p = number.of.T,
-                          q = number.of.V,
-                          r1 = conf.num.vec[1],
-                          r2 = conf.num.vec[2],
-                          u1 = conf.num.vec[3],
-                          u2 = conf.num.vec[4]),
-              sd.1 = sd.1,
-              Adjacency = graph.attr$adjacency,
-              Effects = graph.attr$effects.adj,
+              dims = list(n_v = c(V=as.numeric(n_v)),
+                          n_t = c(T=as.numeric(n_t)),
+                          n_w = c(W=as.numeric(conf.num.vec[1])),
+                          n_z = c(Z=as.numeric(conf.num.vec[2])),
+                          n_u = c(U=as.numeric(conf.num.vec[3])),
+                          n_k = c(K=as.numeric(conf.num.vec[4])),
+                          n_i = c(I=as.numeric(number.of.I))),
+              b0 = b0,
+              sigma = sigma,
+              adjacency = graph.attr$adjacency,
+              effects = graph.attr$effects.adj,
               igraph = graph.attr$igraph.obj))
 }
 

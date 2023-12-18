@@ -5,21 +5,21 @@
 #'
 #' @export enumerate.triplets
 #'
-#' @param Adj numeric, a binary matrix indicating adjacency and possibly edge
+#' @param adjacency numeric, a binary matrix indicating adjacency and possibly edge
 #' directions (i.e. a non-directed, or a partially directed graph). All the
-#' \code{p} columns of \code{Adj} represent \code{T}-nodes (phenotypes). As such,
-#' \code{Adj} will in general be an extract of a larger adjacency matrix (last
-#' \code{p} rows and columns in this package). See Section \code{Details} for more
-#' on the interpretation of the values \code{0/1} in \code{Adj} for this function.
+#' \code{n_t} columns of \code{adjacency} represent \code{T}-nodes (phenotypes). As such,
+#' \code{adjacency} will in general be an extract of a larger adjacency matrix (last
+#' \code{n_t} rows and columns in this package). See Section \code{Details} for more
+#' on the interpretation of the values \code{0/1} in \code{adjacency} for this function.
 #'
-#' @param p,q,r integers, respectively: number of \code{T}-nodes (non-instrumental variables),
+#' @param n_t,n_v,n_q integers, respectively: number of \code{T}-nodes (non-instrumental variables),
 #' number of \code{V}-nodes (instrumental variables), and number of \code{Q}-nodes
 #' (confounding variables: intermediate variables and common children).
 #'
 #' @param TTT logical indicating the composition of desired trios. If true (the default),
 #' only trios not involving a \code{Q}-node are formed, i.e. a trio contains one
 #' three \code{T}-nodes. Otherwise, only trios involving \code{Q}-nodes are
-#' formed, i.e.  a trio contains two \code{T}-nodes, and one \code{Q}-node.
+#' formed, i.e. a trio contains two \code{T}-nodes, and one \code{Q}-node.
 #'
 #' @param return.3 logical, should triplets of type (3) be returned as an
 #' attribute named \code{triplet.3} (of class \code{matrix}) for the output?
@@ -32,7 +32,7 @@
 #'
 #' @param chunk.size integer, number of tasks per scheduling unit during parallel computation.
 #'
-#' @details The binary matrix \code{Adj} represent a non-directed, or a partially
+#' @details The binary matrix \code{adjacency} represent a non-directed, or a partially
 #' directed graph. For two nodes \code{Ti} and \code{Tj}, the matrix elements
 #' \code{a_ij} and \code{a_ji} define both the presence of an edge and the
 #' direction of the edge if any: an edge is present between nodes \code{Ti}
@@ -95,25 +95,25 @@
 #' is a \code{matrix}, and it has zero row if no triplet of type (3) is
 #' found.
 #'
-#' @seealso \link{enumerate.trios}.
+#' @seealso \link{enumerate.trios} to enumerate trios involving genetic variants.
 #'
 #
 ####################################################
 # List update-able triplets involving strictly T-nodes
-enumerate.triplets <- function (Adj,
-                                p,
-                                q,
-                                r = NROW(Adj) - p - q,
+enumerate.triplets <- function (adjacency,
+                                n_t,
+                                n_v,
+                                n_q = NROW(adjacency) - n_t - n_v,
                                 TTT = TRUE,
                                 return.3 = FALSE,
                                 cl, chunk.size = NULL) {
   # Check arguments
-  if (missing(p))
-    stop("Argument 'p' must be specified")
+  if (missing(n_t))
+    stop("Argument 'n_t' must be specified")
 
   stopifnot(is.logical(TTT[1]))
-  if (!TTT[1] & r == 0) {
-    stop("'r > 0' is required when 'TTT = FALSE'")
+  if (!TTT[1] & n_q == 0) {
+    stop("'n_q > 0' is required when 'TTT = FALSE'")
   }
 
   # Set default cluster
@@ -121,17 +121,18 @@ enumerate.triplets <- function (Adj,
     cl <- parallel::getDefaultCluster()
 
   # Keep only T-nodes (discard V-nodes) and Q-nodes if any
-  Adj <- Adj[(q + 1):(q + p + if (TTT[1]) 0 else r),
-             (q + 1):(q + p + if (TTT[1]) 0 else r)]
+  n_vt <- n_v + n_t
+  adjacency <- adjacency[(n_v + 1):(n_vt + if (TTT[1]) 0 else n_q),
+             (n_v + 1):(n_vt + if (TTT[1]) 0 else n_q)]
 
   # Adjacency matrix of the un-directed graph
-  UndirAdj <- ((Adj + t(Adj)) > 0) + 0
+  UndirAdj <- ((adjacency + t(adjacency)) > 0) + 0
 
   # Labels (numbers) for all T-nodes
-  Tlabels <- 1:p
+  Tlabels <- 1:n_t
 
   # Labels (numbers) for all Q-nodes if required
-  Qlabels <- if (!TTT[1]) (p+1):(p+r)
+  Qlabels <- if (!TTT[1]) (n_t+1):(n_t+n_q)
 
   if (TTT[1]) {
     # An indicator for T,Q-nodes with at least two edges
@@ -141,7 +142,7 @@ enumerate.triplets <- function (Adj,
     # List all triplets involving a T-node with at least two edges
     triplets <- matteLapply (X = Tlabels[margins],
                              FUN = find.triplets.i,
-                             Adj = UndirAdj,
+                             adjacency = UndirAdj,
                              Tlabels = Tlabels,
                              cl = cl, chunk.size = chunk.size)
   }
@@ -153,7 +154,7 @@ enumerate.triplets <- function (Adj,
     # List all triplets involving a Q-node, and with at least two edges
     triplets <- matteLapply (X = Qlabels[margins],
                              FUN = find.Qtriplets.i,
-                             Adj = UndirAdj,
+                             adjacency = UndirAdj,
                              Tlabels = Tlabels,
                              cl = cl, chunk.size = chunk.size)
   }
@@ -168,7 +169,7 @@ enumerate.triplets <- function (Adj,
   triplets <- t(matteApply(triplets,
                            MARGIN = 1,
                            FUN = get.triplet.type.i,
-                           Adj = Adj,
+                           adjacency = adjacency,
                            Tlabels = Tlabels,
                            TTT = TTT[1],
                            Qlabels = Qlabels,
@@ -205,15 +206,15 @@ enumerate.triplets <- function (Adj,
     else
       triplet.null (FALSE)$triplets
   }
-  return(list(triplets = triplets + q, types = if (any(keep)) types[keep]))
+  return(list(triplets = triplets + n_v, types = if (any(keep)) types[keep]))
 }
 
 ####################################################
 # A routine check if a triplet is update-able
-get.triplet.type.i <- function(x, Adj, Tlabels,
+get.triplet.type.i <- function(x, adjacency, Tlabels,
                                TTT = TRUE,
                                Qlabels = NULL) {
-  res <- find.triplet.type (Aijk = Adj[x, x],
+  res <- find.triplet.type (Aijk = adjacency[x, x],
                             labelsijk = c(Tlabels, if (!TTT) Qlabels)[x],
                             TTT = TTT)
 
@@ -494,15 +495,15 @@ find.triplet.type <- function (Aijk, labelsijk, TTT = TRUE) {
 ####################################################
 
 # Parallelized version of 'enumerate.triplets'
-enumerate.triplets.parallel <- function (Adj, return.3 = FALSE, cl,
+enumerate.triplets.parallel <- function (adjacency, return.3 = FALSE, cl,
                                          chunk.size = NULL) {
 
   # Labels (numbers) for all T-nodes
-  p <- NCOL(Adj)
-  Tlabels <- 1:p
+  n_t <- NCOL(adjacency)
+  Tlabels <- 1:n_t
 
   # Adjacency matrix of the un-directed graph
-  UndirAdj <- ((Adj + t(Adj)) > 0) + 0
+  UndirAdj <- ((adjacency + t(adjacency)) > 0) + 0
 
   # An indicator for T-nodes with at least two edges
   Nedges <- rowSums(UndirAdj)
@@ -511,7 +512,7 @@ enumerate.triplets.parallel <- function (Adj, return.3 = FALSE, cl,
   # List all triplets involving a T-node with at least two edges
   triplets <- parallel::parLapply (cl = cl,
                                    X = Tlabels[margins], fun = find.triplets.i,
-                                   Adj = UndirAdj, Tlabels = Tlabels)
+                                   adjacency = UndirAdj, Tlabels = Tlabels)
   triplets <- do.call('rbind', triplets)
 
   # Terminate if no strictly T-nodes triplet can be formed
@@ -523,101 +524,7 @@ enumerate.triplets.parallel <- function (Adj, return.3 = FALSE, cl,
   triplets <- t(parallel::parApply (cl = cl,
                                     X = triplets,
                                     MARGIN = 1, FUN = function(x) {
-    res <- find.triplet.type (Aijk = Adj[x, x],
-                              labelsijk = Tlabels[x])
-    if (is.null(res$types))
-      return(rep(0, 4))
-    return(c(res$triplets, res$types))
-  }))
-
-  # An indicator to remove null rows
-  keep <- rowSums(triplets) > 0
-
-  # Terminate if no strictly T-nodes triplet can be formed
-  if (!any(keep)) {
-    return(triplet.null (return.3))
-  }
-
-  # Remove null rows and extract 'types'
-  triplets <- triplets[keep, , drop = FALSE]
-  colnames(triplets) <- c("Ti", "Tj", "Tk", "types")
-  types <- triplets[,4]
-
-  # Indicator of type (2) and (3) triplets
-  keep <- types > 1
-
-  # Return
-  if (return.3[1]) {
-    triplet.3 <- if (!all(keep))
-      triplets[!keep, 1:3, drop = FALSE]
-    else
-      triplet.null (FALSE)$triplets
-    triplets <- triplets[keep, 1:3, drop = FALSE]
-    attr(triplets, 'triplet.3') <- triplet.3
-  }
-  else {
-    triplets <- if (any(keep)) {
-      triplets[keep, 1:3, drop = FALSE]
-    }
-    else
-      triplet.null (FALSE)$triplets
-  }
-  return(list(triplets = triplets, types = if (any(keep)) types[keep]))
-}
-
-# List update-able triplets involving strictly T-nodes
-# Initial version of enumerate.triplets
-# Uses a greedy search
-# Kept to test the effectiveness of 'enumerate.triplets'
-enumerate.triplets.greedy <- function (Adj, return.3 = FALSE) {
-  # Labels (numbers) for all T-nodes
-  p <- NCOL(Adj)
-  Tlabels <- 1:p
-
-  # An indicator to exclude isolated T-nodes
-  margins <- (rowSums(Adj) + colSums(Adj)) > 0
-
-  # Number of non completely isolated T-nodes
-  nnodes <- sum(margins)
-
-  # Terminate if no strictly T-nodes triplet can be formed
-  if (nnodes < 3) {
-    return(triplet.null (return.3))
-  }
-
-  # Special case of only one possible triplet
-  if (nnodes == 3) {
-    # Get triplet (and type of triplet) if any
-    triplets <- find.triplet.type (Aijk = Adj[margins, margins],# Extract sub-adjacency matrix
-                                   labelsijk = Tlabels[margins])# Pick the 3 labels
-
-    # Return a 0 row matrix if triplet is of type (1)
-    if (triplets$types == 1) {
-      # Save 'triplet.3' as an attribute if asked for
-      if (return.3[1]) {
-        triplet.3 <- triplets$triplets
-        triplets <- triplet.null (FALSE)
-        attr(triplets$triplets, 'triplet.3') <- triplet.3
-        return(triplets)
-      }
-      return(triplet.null (FALSE))
-    }
-
-    # Give a 0 row matrix as the attribute 'triplet.3' if required
-    if (return.3[1]) {
-      attr(triplets$triplets, 'triplet.3') <- triplet.null (FALSE)$triplets
-    }
-
-    # Return the triplet
-    return(triplets)
-  }
-
-  # List all non-isolated triplets
-  triplets <- combn(Tlabels[margins], 3)
-
-  # Get update-able triplets (and types of triplet) if any
-  triplets <- t(apply(triplets, MARGIN = 2, FUN = function(x) {
-    res <- find.triplet.type (Aijk = Adj[x, x],
+    res <- find.triplet.type (Aijk = adjacency[x, x],
                               labelsijk = Tlabels[x])
     if (is.null(res$types))
       return(rep(0, 4))
@@ -675,9 +582,9 @@ triplet.null <- function (return.3) {
 # Routine for 'enumerate.triplets' (which enumerates triplets sequentially)
 # Find triplets involving a particular T-node
 # This function is a slightly modified version of 'enumerate.trios.i'
-find.triplets.i <- function(i, Adj, Tlabels) {
+find.triplets.i <- function(i, adjacency, Tlabels) {
   # Binary vector indicating T-nodes associated with 'Ti'
-  Tlabelj <- Adj[i, Tlabels]
+  Tlabelj <- adjacency[i, Tlabels]
 
   # number of T-nodes that have an edge with 'Ti'
   pi <- sum(Tlabelj)
@@ -705,9 +612,9 @@ find.triplets.i <- function(i, Adj, Tlabels) {
 
 # This function is very close to 'enumerate.trios.i' (with Qi instead of Vi)
 # Should find a way to avoid this duplicate
-find.Qtriplets.i <- function(i, Adj, Tlabels) {
+find.Qtriplets.i <- function(i, adjacency, Tlabels) {
   # Binary vector indicating T-nodes associated with 'Qi'
-  Tlabeli <- Adj[i, Tlabels]
+  Tlabeli <- adjacency[i, Tlabels]
 
   # number of T-nodes that have an edge with 'Qi'
   pi <- sum(Tlabeli)
@@ -724,7 +631,7 @@ find.Qtriplets.i <- function(i, Adj, Tlabels) {
 
     # Pairs involving a T-node non-associated to Qi (with an associated one)
     Npairs <- if (pi < length(Tlabels)) {
-      form.doublets(Tlabeli = Tlabeli, Tlabels = Tlabels, Adj = Adj)
+      form.doublets(Tlabeli = Tlabeli, Tlabels = Tlabels, adjacency = adjacency)
     }
 
     # Bind the two groups of doublets

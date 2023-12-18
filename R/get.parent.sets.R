@@ -1,41 +1,71 @@
 ### Build the list of true confounding variables for T-nodes
 ### From an adjacency matrix
-### Refer to MRGN for notation (p,q,r,u)
+### Refer to MRGN for notation (n_t,n_v,n_wz,n_u); n_wz = n_q (the true n_q)
 ### offset is the number of variables in Adj before true confounding variables
-get.true.conf.set <- function(Adj, p, u, q = 0, r = 0, offset = p + q + r) { # offset = nb.VTnodes + r
-  if (u == 0) {
-    return(list())
-  }
-  if (all(dim(Adj) == c(u, p))) {
-    KU_T.Adj <- Adj
+get.true.conf.set <- function(Adj, n_v = 0, n_t, n_wz = 0, n_u,
+                              Upool = TRUE,
+                              offset = n_t + n_v + if (Upool) n_wz else 0) {
+  if (Upool) {
+    if (n_u == 0) {
+      return(list())
+    }
+
+    if (all(dim(Adj) == c(n_u, n_t))) {
+      KU_T.Adj <- Adj
+    }
+    else {
+      KU_T.Adj <- Adj[(n_t + n_v + n_wz + 1):(n_t + n_v + n_wz + n_u), (n_v + 1):(n_t + n_v)]
+    }
+
+    ConfSet <- lapply(1:n_t, FUN = function(j) {
+      TK <- KU_T.Adj[,j] * (1:n_u)
+      if (any((Kj <- TK > 0)))
+        return(TK[Kj] + offset) # True confounders for T node j
+      NULL
+    })
+
+    names(ConfSet) <- colnames(KU_T.Adj)
   }
   else {
-    KU_T.Adj <- Adj[(p + q + 1):(p + q + u), (q + 1):(p + q)]
+    if (n_wz == 0) {
+      return(list())
+    }
+
+    if (all(dim(Adj) == c(n_wz, n_t))) {
+      Q_T.Adj <- Adj
+    }
+    else {
+      Adj <- ((Adj + t(Adj)) > 0) + 0
+      Q_T.Adj <- Adj[(n_t + n_v + 1):(n_t + n_v + n_wz), (n_v + 1):(n_t + n_v)]
+    }
+
+    ConfSet <- lapply(1:n_t, FUN = function(j) {
+      TQ <- Q_T.Adj[,j] * (1:n_wz)
+      if (any((Qj <- TQ > 0)))
+        return(TQ[Qj] + offset) # True W,Z-nodes for T node j
+      NULL
+    })
+    names(ConfSet) <- colnames(Q_T.Adj)
+
   }
-  ConfSet <- lapply(1:p, FUN = function(j) {
-    TK <- KU_T.Adj[,j] * (1:u)
-    if (any((Kj <- TK > 0)))
-      return(TK[Kj] + offset) # True confounders for T node j
-    NULL
-  })
-  names(ConfSet) <- colnames(KU_T.Adj)
+
   return(ConfSet)
 }
 
 ### Build the list of parent V-nodes for T-nodes
 ### From an adjacency matrix
-get.true.variant.set <- function(Adj, p, q) {
-  if (q == 0) {
+get.true.variant.set <- function(Adj, n_t, n_v) {
+  if (n_v == 0) {
     return(list())
   }
-  if (all(dim(Adj) == c(q, p))) {
+  if (all(dim(Adj) == c(n_v, n_t))) {
     V_T.Adj <- Adj
   }
   else {
-    V_T.Adj <- Adj[1:q, (q + 1):(p + q)]
+    V_T.Adj <- Adj[1:n_v, (n_v + 1):(n_t + n_v)]
   }
-  VSet <- lapply(1:p, FUN = function(j) {
-    VT <- V_T.Adj[,j] * (1:q)
+  VSet <- lapply(1:n_t, FUN = function(j) {
+    VT <- V_T.Adj[,j] * (1:n_v)
     if (any((Vj <- VT > 0)))
       return(VT[Vj])
     NULL
@@ -46,15 +76,15 @@ get.true.variant.set <- function(Adj, p, q) {
 
 ### Build the list of parent T-nodes for each T-node
 ### From an adjacency matrix
-get.true.parent.genes <- function(Adj, q = 0, p = NCOL(Adj) - q) {
-  if (p == 0) {
+get.true.parent.genes <- function(Adj, n_v = 0, n_t = NCOL(Adj) - n_v) {
+  if (n_t == 0) {
     return(list())
   }
-  Adj <- Adj[(q+1):(p+q), (q+1):(p+q)]
-  TSet <- lapply(1:p, FUN = function(j) {
-    TT <- Adj[,j] * (1:p)
+  Adj <- Adj[(n_v+1):(n_t+n_v), (n_v+1):(n_t+n_v)]
+  TSet <- lapply(1:n_t, FUN = function(j) {
+    TT <- Adj[,j] * (1:n_t)
     if (any((Tj <- TT > 0)))
-      return(TT[Tj] + q)
+      return(TT[Tj] + n_v)
     NULL
   })
   names(TSet) <- colnames(Adj)

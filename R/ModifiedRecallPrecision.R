@@ -1,5 +1,5 @@
 
-#' @title Calculate recall and precision for two graphs
+#' @title Calculate recall and precision for an inferred graph given the true graph
 #'
 #' @description
 #' This function counts the number of true and false positives, and calculates
@@ -11,18 +11,28 @@
 #'
 #' @export RecallPrecision
 #'
-#' @param g1 First graph object, from the true graph
-#' @param g2 Second graph object, from the inferred graph
-#' @param GV The number of genetic variants (SNPs/indels/CNV/eQTLs) in the input data matrix. For example, if the data has one variant, which is in the first column, then GV = 1. If there are two variants, which are in the first and second Columns, then GV = 2. If there are no variants, then GV = 0.
-#' @param includeGV If \code{TRUE}, include edges involving genetic variants (GV) when calculating recall and precision. If FALSE, exclude edges involving genetic variants (GV) when calculating recall and precision.
+#' @param g1 First graph object, the true graph.
+#'
+#' @param g2 Second graph object, the inferred graph.
+#'
+#' @param GV The number of genetic variants (SNPs/indels/CNV/eQTLs) in the input
+#' data matrix. For example, if the data has one variant, which is in the first
+#' column, then GV = 1. If there are two variants, which are in the first and
+#' second Columns, then GV = 2. If there are no variants, then GV = 0.
+#'
+#' @param includeGV If \code{TRUE}, include edges involving genetic variants (GV)
+#' when calculating recall and precision. If FALSE, exclude edges involving
+#' genetic variants (GV) when calculating recall and precision.
+#'
 #' @param edge.presence The weight for an edge being present.
+#'
 #' @param edge.direction The weight for the edge direction.
 #'
 #' @details
 #'  We consider it more important to be able to identify the presence of an edge
 #'  than to also get the direct correct. Therefore, we assign 1 as the default
 #'  to an edge with the correct direction and 0.5 to an edge with the wrong
-#'  direction or no direction \insertCite{badsha2019learning,badsha2021mrpc}{MRGN}.
+#'  direction or no direction \insertCite{badsha2019learning,badsha2021mrpc}{MRGNgeneral}.
 #'
 #' @return A \code{list} object that contains the following:
 #' \itemize{

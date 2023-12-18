@@ -8,18 +8,21 @@
 #' @export enumerate.trios
 #'
 #' @param i integer vector, position of the target \code{V}-nodes (genetic
-#' variants) in the adjacency matrix \code{Adj}: \code{i} must satisfy
-#' \code{1 ≤ i ≤ q} (see the argument \code{q}). For convenience,
-#' \code{i} is coerced to the integer type using the function \link{as.integer}.
-#' Defaults to \code{i = 1:q} (i.e. all genetic variants).
+#' variants) in the adjacency matrix \code{adjacency}: \code{i} must satisfy
+#' \code{1 ≤ i ≤ n_v} (see the argument \code{n_v}).
+# For convenience,
+# \code{i} is coerced to the integer type using the function \link{as.integer}.
+#' Defaults to \code{i = 1:n_v} (i.e. all genetic variants).
 #'
-#' @param Adj numeric, an adjacency matrix, i.e., a binary symmetric matrix
-#' (graph object). The first \code{q} columns of \code{Adj} represent
-#' \code{V}-nodes, and the last \code{p} columns of \code{Adj} represent
-#' \code{T}-nodes (expressions/phenotypes). Only the upper triangular part of
-#' \code{Adj} is actually used.
+#' @param adjacency numeric, an adjacency matrix, i.e., a binary square matrix
+#' with zeros on the main diagonal.
+#' The first \code{n_v} columns of \code{adjacency} represent
+#' \code{V}-nodes, the next \code{n_t} columns represent \code{T}-nodes
+#' (expressions/phenotypes), and the last \code{n_q} columns represent
+#' \code{Q}-nodes (intermediate variables and common children).
+#' Only the upper triangular part of \code{adjacency} is actually used.
 #'
-#' @param p,q,r integers, respectively: number of \code{T}-nodes (non-instrumental variables),
+#' @param n_t,n_v,n_q integers, respectively: number of \code{T}-nodes (non-instrumental variables),
 #' number of \code{V}-nodes (instrumental variables), and number of \code{Q}-nodes
 #' (confounding variables: intermediate variables and common children).
 #'
@@ -36,11 +39,11 @@
 #'
 #' @param chunk.size integer, number of tasks per scheduling unit during parallel computation.
 #'
-# enumerate.trios (i = 1:q,
-#                  Adj,
-#                  p = NROW(Adj) - q,
-#                  q = length(i),
-#                  r = NROW(Adj) - p - q,
+# enumerate.trios (i = 1:n_v,
+#                  adjacency,
+#                  n_t = NROW(adjacency) - n_v,
+#                  n_v = length(i),
+#                  n_q = NROW(adjacency) - n_t - n_v,
 #                  VTT = TRUE,
 #                  cl, chunk.size = NULL)
 #
@@ -53,9 +56,9 @@
 #' trio with two different \code{Q}-nodes is not allowed.
 #'
 #' @return A list of matrices, one for each unique element of \code{i}. If the
-#' input adjacency matrix \code{Adj} has non-\code{NULL} colnames (as returned
+#' input adjacency matrix \code{adjacency} has non-\code{NULL} colnames (as returned
 #' by \link{colnames}), then the elements of the list are named after the
-#' corresponding columns (from the first \code{q} columns). Otherwise, they are
+#' corresponding columns (from the first \code{n_v} columns). Otherwise, they are
 #' named as 'Vi' where 'i' are the unique elements of \code{i}.
 #'
 #' For each matrix, each row gives the column numbers of variables forming a
@@ -66,58 +69,59 @@
 #'
 #' @seealso
 #' \link{enumerate.new.trios} to enumerate additional trios after updating the
-#' adjacency matrix \code{Adj}.
+#' adjacency matrix \code{adjacency}.
 #'
 #' \link{enumerate.triplets} to enumerate trios involving no genetic
 #' variant (only \code{T} and \code{Q}-nodes).
 #
 ####################################################
 # List all trios involving a target genetic variant
-enumerate.trios <- function (i = 1:q,
-                             Adj,
-                             p = NROW(Adj) - q,
-                             q = length(i),
-                             r = NROW(Adj) - p - q,
+enumerate.trios <- function (i = 1:n_v,
+                             adjacency,
+                             n_t = NROW(adjacency) - n_v,
+                             n_v = length(i),
+                             n_q = NROW(adjacency) - n_t - n_v,
                              VTT = TRUE,
                              cl, chunk.size = NULL) {
   # Check arguments
-  if (missing(i) & missing(q))
-    stop("One of argument 'i' and 'q' must be specified")
+  if (missing(i) & missing(n_v))
+    stop("One of argument 'i' and 'n_v' must be specified")
 
   if (!missing(i)) {
     if (length(i) < 1)
       stop("'i' must be a non-NULL vector of integers.")
     i <- as.integer(unique(i))
-    if (any(c(i < 1, i > q)))
-      stop("The vector 'i' must satisfy '1 ≤ i ≤ q' element-wise.")
+    if (any(c(i < 1, i > n_v)))
+      stop("The vector 'i' must satisfy '1 ≤ i ≤ n_v' element-wise.")
   }
 
   stopifnot(is.logical(VTT[1]))
-  if (!VTT[1] & r == 0) {
-    stop("'r > 0' is required when 'VTT = FALSE'")
+  if (!VTT[1] & n_q == 0) {
+    stop("'n_q > 0' is required when 'VTT = FALSE'")
   }
 
-  # Only use the upper triangular part of Adj
-  Adj[lower.tri(Adj)] <- Adj[lower.tri(t(Adj))]
+  # Only use the upper triangular part of adjacency
+  adjacency[lower.tri(adjacency)] <- adjacency[lower.tri(t(adjacency))]
 
   # Labels (numbers) for all T-nodes
-  Tlabels <- (1 + q):(p + q)
+  n_vt <- n_v + n_t
+  Tlabels <- (1 + n_v):n_vt
 
   # Labels (numbers) for all Q-nodes
-  Qlabels <- if (!VTT[1]) (1 + p + q):(p + q + r)
+  Qlabels <- if (!VTT[1]) (1 + n_vt):(n_vt + n_q)
 
   # Wrap 'enumerate.trios.i' over 'i'
   if (missing(cl))
     cl <- parallel::getDefaultCluster()
   res <- matteLapply(i,
                      FUN = enumerate.trios.i,
-                     Adj = Adj, p = p,
+                     adjacency = adjacency, n_t = n_t,
                      Tlabels = Tlabels,
                      Qlabels = Qlabels,
                      cl = cl, chunk.size = chunk.size)
 
   # Name and return the obtained list
-  Vnames <- colnames(Adj)
+  Vnames <- colnames(adjacency)
   if (!is.null(Vnames)) {
     names(res) <- Vnames[i]
   }
@@ -130,12 +134,12 @@ enumerate.trios <- function (i = 1:q,
 ####################################################
 # 'enumerate.trios.i' is the workhorse for 'enumerate.trios'
 enumerate.trios.i <- function (i,
-                               Adj,
-                               p,
+                               adjacency,
+                               n_t,
                                Tlabels,
                                Qlabels = NULL) {
   # Binary vector indicating T-nodes associated with 'Vi'
-  Tlabeli <- Adj[i, Tlabels]
+  Tlabeli <- adjacency[i, Tlabels]
 
   # number of T nodes that have an edge with 'Vi'
   pi <- sum(Tlabeli)
@@ -151,9 +155,9 @@ enumerate.trios.i <- function (i,
     }
 
     # Pairs involving a T-node non-associated to Vi (with an associated one)
-    Npairs <- if (pi < p) {
+    Npairs <- if (pi < n_t) {
       form.doublets(Tlabeli = Tlabeli, Tlabels = Tlabels,
-                    Adj = Adj)
+                    adjacency = adjacency)
     }
 
     # Bind the two groups of doublets
@@ -165,7 +169,7 @@ enumerate.trios.i <- function (i,
     res <- form.doublets_TQ (Tlabeli = Tlabeli,
                              Tlabels = Tlabels,
                              Qlabels = Qlabels,
-                             Adj = Adj)
+                             adjacency = adjacency)
 
   }
 
@@ -191,10 +195,10 @@ enumerate.trios.i <- function (i,
 ####################################################
 # A routine for 'enumerate.trios.i': form all doublets involving each a T-node
 # associated with Vi and a T-node non associated with 'Vi'
-form.doublets <- function(Tlabeli, Tlabels, Adj) {
+form.doublets <- function(Tlabeli, Tlabels, adjacency) {
   # Get a list of doublets involving each T-node
   res <- lapply(Tlabels[as.logical(Tlabeli)], FUN = form.doublets.j,
-                Tlabeli = Tlabeli, Tlabels=Tlabels, Adj=Adj)
+                Tlabeli = Tlabeli, Tlabels=Tlabels, adjacency=adjacency)
 
   # Unlist the result
   res <- unlist(res, recursive = TRUE)
@@ -208,9 +212,9 @@ form.doublets <- function(Tlabeli, Tlabels, Adj) {
 }
 
 # A child function for the T-node numbered 'j'
-form.doublets.j <- function(j, Tlabeli, Tlabels, Adj) {
+form.doublets.j <- function(j, Tlabeli, Tlabels, adjacency) {
   # Binary vector indicating T-nodes associated with 'Tj'
-  assoc <- Adj[j, Tlabels]
+  assoc <- adjacency[j, Tlabels]
 
   # Eliminating T-nodes already in Tlabeli (T-nodes directly associated with 'Vi')
   # to avoid duplicating T-nodes already accounted for in pairwise combinations
@@ -231,11 +235,11 @@ form.doublets.j <- function(j, Tlabeli, Tlabels, Adj) {
   return(c(resj))
 }
 
-form.doublets_TQ <- function(Tlabeli, Tlabels, Qlabels, Adj) {
+form.doublets_TQ <- function(Tlabeli, Tlabels, Qlabels, adjacency) {
   # Get a list of doublets involving each T-node
   res <- lapply(Tlabels[as.logical(Tlabeli)], FUN = form.doublets_TQ.j,
                 Qlabels = Qlabels,
-                Adj=Adj)
+                adjacency=adjacency)
 
   # Unlist the result
   res <- unlist(res, recursive = TRUE)
@@ -250,9 +254,9 @@ form.doublets_TQ <- function(Tlabeli, Tlabels, Qlabels, Adj) {
 }
 
 # A child function for the T-node numbered 'j'
-form.doublets_TQ.j <- function(j, Qlabels, Adj) {
+form.doublets_TQ.j <- function(j, Qlabels, adjacency) {
   # Binary vector indicating Q-nodes associated with 'Tj'
-  assoc <- Adj[j, Qlabels]
+  assoc <- adjacency[j, Qlabels]
 
   # Terminate if no new association exists
   if (sum(assoc) == 0)

@@ -31,18 +31,21 @@
 #'
 #' @param data \code{data.frame} object where columns indexed in \code{trio.set},
 #' \code{Qlabels}, \code{confounders} are taken from for trio analysis.
-#' The first \code{q} columns are \code{V}-nodes (variants), the next \code{p}
-#' columns are \code{T}-nodes (genes), and the remaining columns are confounders,
-#' common children, and intermediate variables.
+#' The first \code{n_t} columns are \code{V}-nodes (variants), the next \code{n_t}
+#' columns are \code{T}-nodes (genes), and the remaining columns are
+#' \code{Q}-nodes (common children and intermediate variables), and
+#' \code{U}-nodes (confounders).
 #'
-#' @param confounders \code{p}-list of column numbers indexing confounders for each \code{T}-node in \code{data}.
+#' @param confounders \code{n_t}-list of column numbers indexing confounders for each \code{T}-node in \code{data}.
 #'
-#' @param p,q integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
+#' @param n_v,n_t integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
 #' in \code{data}.
 #'
-#' @param cl,chunk.size optional arguments, passed to \link{parLapply}{parallel} (when supplied) for parallel computing.
+#' @param cl,chunk.size optional arguments for parallel computing, passed to
+#' \link{parLapply}{parallel} (when supplied).
 #'
 #' @importFrom MRGN infer.trio
+#' @importFrom MRGN adjust.q
 #'
 #' @export analyse.trio.set
 #'
@@ -51,7 +54,7 @@
 analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL,
                              alpha, FDRcontrol, fdr, lambda, lambda.step,
                              pi0.meth = "bootstrap",
-                             data, confounders, p, q,
+                             data, confounders, n_v,n_t,
                              use.perm, gamma, is.CNA,
                              nperms, verbose, cl = NULL, chunk.size = NULL) {
   switch(FDRcontrol,
@@ -60,7 +63,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    MARGIN = 1,
                                    FUN = analyse.trio.i,
                                    Qlabels = Qlabels,
-                                   data = data, confounders = confounders, p = p, q = q,
+                                   data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    alpha = alpha, nperms = nperms, half1 = FALSE, verbose = verbose > 1,
                                    cl = cl, chunk.size = chunk.size)
@@ -72,7 +75,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    MARGIN = 1,
                                    FUN = analyse.trio.i,
                                    Qlabels = Qlabels,
-                                   data = data, confounders = confounders, p = p, q = q,
+                                   data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    nperms = nperms, half1 = TRUE, verbose = verbose > 1,
                                    cl = cl, chunk.size = chunk.size)
@@ -144,7 +147,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    MARGIN = 1,
                                    FUN = analyse.trio.i,
                                    Qlabels = Qlabels,
-                                   data = data, confounders = confounders, p = p, q = q,
+                                   data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    nperms = nperms, half1 = TRUE, verbose = verbose > 1,
                                    cl = cl, chunk.size = chunk.size)
@@ -183,25 +186,26 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
 
 # Extract the correct confounder set for a trio and Call infer.trio for trio analysis
 analyse.trio.i <- function (col.indices, # indicate column number in the adjacency matrix
-                            data, p, q,
+                            data, n_v, n_t,
                             confounders, # indicate column number in the data fame
                             Qlabels = NULL, # NULL means that 'col.indices' also indicate positions in data (not just in the Adj matrix, i.e. columns of data are ordered so that they match those of Adj)
                             use.perm = TRUE, gamma = 0.05, is.CNA = FALSE,
                             alpha = 0.01, nperms = 10000, half1 = FALSE, verbose = FALSE) {
 
   # Replace Adj column index by data column index if any of the two T-nodes is a Q-node
+  n_vt <- n_t + n_v
   if (!is.null(Qlabels)) {
-    if (col.indices[2] > (q + p)) {
-      col.indices[2] <- Qlabels[col.indices[2] - (p + q)]
+    if (col.indices[2] > n_vt) {
+      col.indices[2] <- Qlabels[col.indices[2] - n_vt]
     }
-    if (col.indices[3] > (q + p)) {
-      col.indices[3] <- Qlabels[col.indices[3] - (p + q)]
+    if (col.indices[3] > n_vt) {
+      col.indices[3] <- Qlabels[col.indices[3] - n_vt]
     }
   }
 
   # For each trio, take the union of the confounders for the two T nodes
-  conf.set.trio <- c(if (col.indices[2] <= q + p) confounders[[col.indices[2] - q]], # Take confounder index for T-node
-                     if (col.indices[3] <= q + p) confounders[[col.indices[3] - q]]) # Result is NULL if Q-node
+  conf.set.trio <- c(if (col.indices[2] <= n_vt) confounders[[col.indices[2] - n_v]], # Take confounder index for T-node
+                     if (col.indices[3] <= n_vt) confounders[[col.indices[3] - n_v]]) # Result is NULL if Q-node
 
   #conf.set.trio <- unique(conf.set.trio)
 

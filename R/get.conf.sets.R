@@ -4,10 +4,10 @@
 # Select T-nodes (partial correlations given selected U-nodes and one or two V-nodes from eQTL analysis per T-node)
 # Select V-nodes (partial correlations given selected U-nodes, and selected T-nodes)
 
-#' Select confounders and confounding variables for genes in a regulatory network
+#' Select confounding variables for a genomic network
 #'
 #' Build a set of confounding variables for genes in a genomic network including
-#' genes (e.g. expression values), genetic variants, and confounders (e.g. sex, age,
+#' genes (e.g. expression values), genetic variants, and confounding variables (e.g. sex, age,
 #' PC scores from whole-genome expression) by testing marginal or partial associations
 #' of each potential confounding variable and each gene. For each gene, the function
 #' finds variants and/or other genes (in the network) that can confound the
@@ -73,10 +73,10 @@
 #' as a \code{.RData} structure. Only used if \code{save.list = TRUE}.
 #'
 #' @details
-#' This function is a wrapper for \link{get.conf.matrix}.
+# This function is a wrapper for \link[MRGN]{get.conf.matrix}.
 #' For a graph \code{G(V, T, C)} where \code{V} is the set of genetic variants,
 #' \code{T} is the set of gene expressions, and \code{C} is the set of candidate
-#' confounding variables in the network; \link{get.conf.sets} performs
+#' confounding variables in the network; \code{get.conf.sets} performs
 #' three independent tasks.
 #' \describe{
 #'   \item{V-node selection:}{ the *marginal* association between each gene (\code{T}-node) and
@@ -86,7 +86,7 @@
 #'   involving all \code{T}-nodes (when \code{adjust_by = 'all'}) are adjusted for
 #'   multiple comparison using the method \code{V.FDRcontrol}. All \code{V}-nodes
 #'   significantly associated with a particular \code{T}-node are then retained as
-#'   selected confounding variables for the \code{T}-node.}
+#'   selected confounders for the \code{T}-node.}
 #'   \item{T-node selection:}{ the process is similar to *V-node selection* except
 #'   that here, the associations between each \code{T}-node and all other \code{T}-nodes
 #'   in the network are tested, and the association measure between two \code{T}-nodes can
@@ -106,14 +106,111 @@
 #'   \code{Z}-node).}
 #' }
 #'
-#' @return a list with elements:
+#' Correlation matrices are computed using \link[propagate]{bigcor} which is
+#' more efficient in large datasets \insertCite{Spiess2018propagate}{MRGNgeneral}.
+#' Partial correlations are obtained using \link[ppcor]{pcor} \insertCite{kim2015ppcor}{MRGNgeneral}.
+#' The \code{C}-node selection step follows
+#' \insertCite{yang2017identifying}{MRGNgeneral}.
+# \insertCite{yang2017identifying;textual}{MRGNgeneral}
+#'
+#' @return an object of class \code{'conf.sets'}, i.e. a named list with elements:
+#' \describe{
+#' \item{\code{Vconfounders}}{a list of length \code{n_t} giving the vector of
+#' \code{V}-nodes selected as confounders for each of the \code{n_t}
+#' \code{T}-nodes in the network.}
+#' \item{\code{Tconfounders}}{a list of length \code{n_t} giving the vector of
+#' \code{T}-nodes selected as confounders for each of the \code{n_t}
+#' \code{T}-nodes in the network.}
+#' \item{\code{Uconfounders}}{a list of length \code{n_t} giving the vector of
+#' \code{U}-nodes selected as confounders for each of the \code{n_t}
+#' \code{T}-nodes in the network.}
+#' \item{\code{confounders}}{a list of length \code{n_t} obtained as
+#' \code{lbind(Vconfounders, Tconfounders, Uconfounders)}.}
+#' \item{\code{UWZconfounders}}{a list of length \code{n_t} giving the vector of
+#' \code{U,W,Z}-nodes selected as confounders for each of the \code{n_t}
+#' \code{T}-nodes in the network.}
+#' \item{\code{WZconfounders}}{a list of length \code{n_v} giving the vector of
+#' \code{W,Z}-nodes identified as associated to each of the \code{n_v}
+#' \code{V}-nodes in the network.}
+#' \item{\code{UWZindices}}{a vector giving the pool of all selected
+#' \code{U,W,Z}-nodes.}
+#' \item{\code{WZindices}}{a vector giving the pool of all selected
+#' \code{W,Z}-nodes.}
+#' \item{\code{raw}}{a list of the raw results (as returned by
+#' \link[MRGN]{get.conf.matrix}) for each selection step.}
+#' \item{\code{time}}{a list of the CPU time (as returned by
+#' \link{system.time}) for each selection step.}
+#' \item{new.order}{ \code{NULl} (not returned by this function),
+#' but can be a numeric vector of new column-orders used to alter other slots
+#' (except \code{time}), see \link{reorder.conf.sets}.}
+#' }
 #'
 #' @export get.conf.sets
 #'
 #' @importFrom MRGN get.conf.matrix
+#' @importFrom MRGN p.from.parcor
+#' @importFrom MRGN p.from.cor
+#' @importFrom MRGN adjust.q
+#' @importFrom stats p.adjust
 #' @importFrom ppcor pcor
 #'
-#' @seealso \link{get.conf.matrix}{MRGN}.
+#' @seealso \link{assess.conf.selection} to evaluate the performance of the
+#' selection procedure given the adjacency matrix of the true network.
+#
+# \link[MRGN]{get.conf.matrix}.
+#'
+#' @references
+#' \insertAllCited{}
+#'
+#' @examples
+#' ## Simulate some data with 20 phenotypes
+#' set.seed(167)
+#' net20data <- sample.graph.data (n_t = 20,
+#'                                 n_v.t = 1,
+#'                                 family.n_v = NULL,
+#'                                 conf.num.vec = c(W = 10, Z = 10,
+#'                                                  U = 40, K = 0, I = 20),
+#'                                 graph_type = "scale-free",
+#'                                 degree = 3,
+#'                                 theta = .4,
+#'                                 b0 = 0,
+#'                                 b.snp = c(-0.5, 0.5),
+#'                                 b.med = c(-0.8, 0.8),
+#'                                 sigma = 0.1,
+#'                                 neg.freq = 0.5,
+#'                                 conf.coef.ranges = list(W = c(0.4, 0.5),
+#'                                                         Z = c(1, 1.5),
+#'                                                         U = c(0.4, 0.5),
+#'                                                         K = c(0.01, 0.1)),
+#'                                 scale = FALSE,
+#'                                 sample.size = 100)
+#'
+#' ## Performing confounding variable selection
+#' confnet20 <- get.conf.sets(data = net20data$data,
+#'                            n_v = net20data$dims$n_v,
+#'                            n_t = net20data$dims$n_t,
+#'                            n_c = NCOL(net20data$data) - net20data$dims$n_v - net20data$dims$n_t,
+#'                            blocksize = 10,
+#'                            T.measure = 'partial',
+#'                            C.measure = 'partial',
+#'                            FDRcontrol = 'qvalue',
+#'                            adjust_by = 'individual',
+#'                            alpha = 0.01,
+#'                            fdr = 0.05,
+#'                            lambda = 0.05,
+#'                            pi0.method = 'smoother')
+#'
+#' ## Recall and precision of the selection procedure
+#' Perf <- assess.conf.selection (confnet20,
+#'                                adjacency = net20data$adjacency,
+#'                                n_v = net20data$dims$n_v,
+#'                                n_t = net20data$dims$n_t,
+#'                                n_w = net20data$dims$n_w,
+#'                                n_z = net20data$dims$n_z,
+#'                                n_u = net20data$dims$n_u)
+#' Perf$recall
+#' Perf$precision
+#'
 
 get.conf.sets <- function (data,
                            scale.data = TRUE,
@@ -721,14 +818,14 @@ check.get.conf.sets.args <- function () {
       return(out)
     }
 
+    nvars <- NCOL(data)
     if (missing(n_c))
-      n_c <- NCOL(data) - n_t - n_v
+      n_c <- nvars - n_t - n_v
     else {
-      stopifnot(n_t + n_v + n_c <= NCOL(data))
+      stopifnot(n_t + n_v + n_c <= nvars)
     }
     m <- n_t + n_v + n_c
     stopifnot(m > 0, c(n_t, n_v, n_c) >= 0)
-    nvars <- NCOL(data)
     stopifnot(all(c(n_t, n_v, n_c, m) <= nvars))
 
     # If no T-node to do selection for
@@ -983,9 +1080,14 @@ get.conf.Tset <- function (data, # data matrix
     cat("            selecting significant covariates... \n")
   }
   #extract significant covariates:
-  sig.asso.covs <- apply(sig.mat,
-                         MARGIN = 2,
-                         FUN = function(x){which(x)}, simplify = FALSE)
+  #sig.asso.covs <- apply(sig.mat,
+  #                       MARGIN = 2,
+  #                       FUN = function(x){which(x)}, simplify = FALSE)
+
+  sig.asso.covs <- lapply(1:NCOL(sig.mat), FUN = function(j) {
+    x <- sig.mat[,j]
+    which(x)
+  })
 
 
   out.list <- list(sig.asso.covs = sig.asso.covs,
@@ -1008,74 +1110,4 @@ get.conf.Tset <- function (data, # data matrix
 # Get T-T partial correlation given all V-nodes (calls ppcor::pcor)
 pcorTTgivenV <- function (jk, V.pool, data) {
   ppcor::pcor(cbind(data[, c(jk, V.pool) ]))$estimate[1,2]
-}
-
-
-# A function to compute recall for confounder selection
-RecallUselection <- function (Uset, RefSet, na.rm = TRUE) {
-
-  n_t <- length(RefSet)
-  stopifnot(n_t > 0)
-  stopifnot(length(Uset) == n_t)
-
-  out <- sapply (1:n_t, FUN = RecallUselectionChild, Uset = Uset, RefSet = RefSet)
-
-  names(Uset) -> names(out)
-
-  if (na.rm) {
-    out <- na.omit(out)
-
-    out <- out[1:length(out)]
-  }
-
-  return(out)
-
-}
-
-# Child of RecallUselection
-RecallUselectionChild <- function(j, Uset, RefSet) {
-  if (length(RefSet[[j]]) & length(Uset[[j]])) {
-    return(mean(RefSet[[j]] %in% Uset[[j]], na.rm = TRUE))
-  }
-  else if (length(RefSet[[j]])) {
-    return(0)
-  }
-  else {
-    return(NA)
-  }
-}
-
-# A function to compute precision for confounder selection
-PrecisionUselection <- function (Uset, RefSet, na.rm = TRUE) {
-  n_t <- length(RefSet)
-  stopifnot(n_t > 0)
-  stopifnot(length(Uset) == n_t)
-
-  out <- sapply (1:n_t, FUN = PrecisionUselectionChild, Uset = Uset, RefSet = RefSet)
-
-  names(Uset) -> names(out)
-
-  if (na.rm) {
-    out <- na.omit(out)
-
-    out <- out[1:length(out)]
-  }
-
-  return(out)
-}
-
-# Child of PrecisionUselection
-PrecisionUselectionChild <- function(j, Uset, RefSet) {
-  if (length(Uset [[j]]) & length(RefSet[[j]])) {
-    return(mean(Uset[[j]] %in% RefSet[[j]], na.rm = TRUE))
-  }
-  else if (!length(RefSet[[j]]) & !length(RefSet[[j]])) {
-    return(1)
-  }
-  else if (length(Uset[[j]]) & !length(RefSet[[j]])) {
-    return(0)
-  }
-  else { # if (!length(Uset[[j]]) & length(RefSet[[j]]))
-    return(NA)
-  }
 }
