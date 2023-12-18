@@ -5,26 +5,28 @@
 \title{sample.graph.data}
 \usage{
 sample.graph.data(
-  number.of.T,
-  number.of.V.T = 1,
-  family.number.of.V.T = NULL,
-  conf.num.vec = rep(0, 4),
+  n_t = 100,
+  n_v.t = 1,
+  family.n_v = NULL,
+  conf.num.vec = c(W = 0, Z = 0, U = 200, K = 0, I = 100),
   graph_type = "scale-free",
   method,
   degree = 3,
-  connection_prob = 0.05,
-  mixed = "None",
-  theta = 0.5,
-  b0.1 = 0,
-  b.snp = 1,
-  b.med = 0.8 * b.snp,
-  sd.1 = 1,
+  theta = 0.4,
+  b0 = 0,
+  b.snp = c(-0.5, 0.5),
+  b.med = c(-0.8, 0.8),
+  sigma = 0.1,
   neg.freq = 0.5,
-  conf.coef.ranges = list(W = c(0.15, 0.5), Z = c(1, 1.5), U = c(0.15, 0.5), K = c(0.01,
-    0.1)),
+  conf.coef.ranges = list(W = c(0.15, 0.5), Z = c(1, 1.5), U = c(0.15, 0.5), K = c(0.15,
+    0.5)),
   scale = FALSE,
-  sample.size
+  sample.size,
+  seed = NULL
 )
+}
+\arguments{
+\item{seed}{scalar integer, seed for reproducibility of random number generation.}
 }
 \description{
 Different from \code{sim.graph.data} in the way \code{V}-nodes are

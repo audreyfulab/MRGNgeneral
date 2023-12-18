@@ -7,11 +7,11 @@
 enumerate.new.trios(
   trio.set,
   new.edges,
-  old.Adj,
-  Adj,
-  q,
-  p,
-  r = NROW(Adj) - p - q,
+  old.adjacency,
+  adjacency,
+  n_v,
+  n_t,
+  n_q = NROW(adjacency) - n_t - n_v,
   VTT = TRUE,
   Qtrio.set = NULL,
   cl,
@@ -26,14 +26,14 @@ Each row of \code{trio.set} is a vector giving the labels of a genetic variant
 \item{new.edges}{logical \eqn{n} vector, the \code{i}th element indicating the
 presence/absence of a new edge in the trio at the \code{i}th row of \code{trio.set}.}
 
-\item{old.Adj}{Adjacency matrix used to form trios in \code{trio.set}.}
+\item{old.adjacency}{Adjacency matrix used to form trios in \code{trio.set}.}
 
-\item{Adj}{Updated adjacency matrix after the analysis of trios in \code{trio.set}.}
+\item{adjacency}{Updated adjacency matrix after the analysis of trios in \code{trio.set}.}
 
-\item{q, p, r}{Numbers of respectively \code{V,T,Q}-nodes in \code{Adj}. I.e.,
-the first \code{q} columns/rows of \code{Adj} correspond to \code{V}-nodes,
-the next \code{p} columns/rows correspond to \code{T}-nodes, and the last
-\code{r} columns/rows correspond to \code{Q}-nodes.}
+\item{n_v, n_t, n_q}{Numbers of respectively \code{V,T,Q}-nodes in \code{adjacency}. I.e.,
+the first \code{n_v} columns/rows of \code{adjacency} correspond to \code{V}-nodes,
+the next \code{n_t} columns/rows correspond to \code{T}-nodes, and the last
+\code{n_q} columns/rows correspond to \code{Q}-nodes.}
 
 \item{VTT}{logical indicating the composition of desired trios. If true (the default),
 only trios not involving a \code{Q}-node are formed, i.e. a trio contains one

@@ -2,7 +2,7 @@
 % Please edit documentation in R/get.conf.sets.R
 \name{get.conf.sets}
 \alias{get.conf.sets}
-\title{Select confounders and confounding variables for genes in a regulatory network}
+\title{Select confounding variables for a genomic network}
 \usage{
 get.conf.sets(
   data,
@@ -97,21 +97,50 @@ object (default = FALSE).}
 as a \code{.RData} structure. Only used if \code{save.list = TRUE}.}
 }
 \value{
-a list with elements:
+an object of class \code{'conf.sets'}, i.e. a named list with elements:
+\describe{
+\item{\code{Vconfounders}}{a list of length \code{n_t} giving the vector of
+\code{V}-nodes selected as confounders for each of the \code{n_t}
+\code{T}-nodes in the network.}
+\item{\code{Tconfounders}}{a list of length \code{n_t} giving the vector of
+\code{T}-nodes selected as confounders for each of the \code{n_t}
+\code{T}-nodes in the network.}
+\item{\code{Uconfounders}}{a list of length \code{n_t} giving the vector of
+\code{U}-nodes selected as confounders for each of the \code{n_t}
+\code{T}-nodes in the network.}
+\item{\code{confounders}}{a list of length \code{n_t} obtained as
+\code{lbind(Vconfounders, Tconfounders, Uconfounders)}.}
+\item{\code{UWZconfounders}}{a list of length \code{n_t} giving the vector of
+\code{U,W,Z}-nodes selected as confounders for each of the \code{n_t}
+\code{T}-nodes in the network.}
+\item{\code{WZconfounders}}{a list of length \code{n_v} giving the vector of
+\code{W,Z}-nodes identified as associated to each of the \code{n_v}
+\code{V}-nodes in the network.}
+\item{\code{UWZindices}}{a vector giving the pool of all selected
+\code{U,W,Z}-nodes.}
+\item{\code{WZindices}}{a vector giving the pool of all selected
+\code{W,Z}-nodes.}
+\item{\code{raw}}{a list of the raw results (as returned by
+\link[MRGN]{get.conf.matrix}) for each selection step.}
+\item{\code{time}}{a list of the CPU time (as returned by
+\link{system.time}) for each selection step.}
+\item{new.order}{ \code{NULl} (not returned by this function),
+but can be a numeric vector of new column-orders used to alter other slots
+(except \code{time}), see \link{reorder.conf.sets}.}
+}
 }
 \description{
 Build a set of confounding variables for genes in a genomic network including
-genes (e.g. expression values), genetic variants, and confounders (e.g. sex, age,
+genes (e.g. expression values), genetic variants, and confounding variables (e.g. sex, age,
 PC scores from whole-genome expression) by testing marginal or partial associations
 of each potential confounding variable and each gene. For each gene, the function
 finds variants and/or other genes (in the network) that can confound the
 regulatory mechanisms between a particular gene and another target gene.
 }
 \details{
-This function is a wrapper for \link{get.conf.matrix}.
 For a graph \code{G(V, T, C)} where \code{V} is the set of genetic variants,
 \code{T} is the set of gene expressions, and \code{C} is the set of candidate
-confounding variables in the network; \link{get.conf.sets} performs
+confounding variables in the network; \code{get.conf.sets} performs
 three independent tasks.
 \describe{
 \item{V-node selection:}{ the \emph{marginal} association between each gene (\code{T}-node) and
@@ -121,7 +150,7 @@ particular \code{T}-node (when \code{adjust_by = 'individual'}), or all the test
 involving all \code{T}-nodes (when \code{adjust_by = 'all'}) are adjusted for
 multiple comparison using the method \code{V.FDRcontrol}. All \code{V}-nodes
 significantly associated with a particular \code{T}-node are then retained as
-selected confounding variables for the \code{T}-node.}
+selected confounders for the \code{T}-node.}
 \item{T-node selection:}{ the process is similar to \emph{V-node selection} except
 that here, the associations between each \code{T}-node and all other \code{T}-nodes
 in the network are tested, and the association measure between two \code{T}-nodes can
@@ -140,7 +169,67 @@ association between all \code{V}-nodes and each pre-selected \code{C}-node,
 to assign the later as a confounder (\code{U}-node) or not (\code{W} or
 \code{Z}-node).}
 }
+
+Correlation matrices are computed using \link[propagate]{bigcor} which is
+more efficient in large datasets \insertCite{Spiess2018propagate}{MRGNgeneral}.
+Partial correlations are obtained using \link[ppcor]{pcor} \insertCite{kim2015ppcor}{MRGNgeneral}.
+The \code{C}-node selection step follows
+\insertCite{yang2017identifying}{MRGNgeneral}.
+}
+\examples{
+## Simulate some data with 20 phenotypes
+set.seed(167)
+net20data <- sample.graph.data (n_t = 20,
+                                n_v.t = 1,
+                                family.n_v = NULL,
+                                conf.num.vec = c(W = 10, Z = 10,
+                                                 U = 40, K = 0, I = 20),
+                                graph_type = "scale-free",
+                                degree = 3,
+                                theta = .4,
+                                b0 = 0,
+                                b.snp = c(-0.5, 0.5),
+                                b.med = c(-0.8, 0.8),
+                                sigma = 0.1,
+                                neg.freq = 0.5,
+                                conf.coef.ranges = list(W = c(0.4, 0.5),
+                                                        Z = c(1, 1.5),
+                                                        U = c(0.4, 0.5),
+                                                        K = c(0.01, 0.1)),
+                                scale = FALSE,
+                                sample.size = 100)
+
+## Performing confounding variable selection
+confnet20 <- get.conf.sets(data = net20data$data,
+                           n_v = net20data$dims$n_v,
+                           n_t = net20data$dims$n_t,
+                           n_c = NCOL(net20data$data) - net20data$dims$n_v - net20data$dims$n_t,
+                           blocksize = 10,
+                           T.measure = 'partial',
+                           C.measure = 'partial',
+                           FDRcontrol = 'qvalue',
+                           adjust_by = 'individual',
+                           alpha = 0.01,
+                           fdr = 0.05,
+                           lambda = 0.05,
+                           pi0.method = 'smoother')
+
+## Recall and precision of the selection procedure
+Perf <- assess.conf.selection (confnet20,
+                               adjacency = net20data$adjacency,
+                               n_v = net20data$dims$n_v,
+                               n_t = net20data$dims$n_t,
+                               n_w = net20data$dims$n_w,
+                               n_z = net20data$dims$n_z,
+                               n_u = net20data$dims$n_u)
+Perf$recall
+Perf$precision
+
+}
+\references{
+\insertAllCited{}
 }
 \seealso{
-\link{get.conf.matrix}{MRGN}.
+\link{assess.conf.selection} to evaluate the performance of the
+selection procedure given the adjacency matrix of the true network.
 }

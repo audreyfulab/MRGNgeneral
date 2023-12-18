@@ -5,29 +5,34 @@
 \title{Identify hubs in a network}
 \usage{
 find.hubs(
-  Adj,
+  adjacency,
   n_v = 0,
-  n_t = NCOL(Adj),
-  n_q = NCOL(Adj) - n_t,
-  number.parents = 10,
-  number.children = 10,
-  number.neighbors = 15,
+  n_t = NCOL(adjacency),
+  n_q = NCOL(adjacency) - (n_t + n_v),
+  number.parents = if (all.conditions) 0 else Inf,
+  number.children = if (all.conditions) 0 else Inf,
+  number.neighbors = 10,
   only.T = TRUE,
-  all.conditions = TRUE
+  all.conditions = FALSE,
+  cl = NULL,
+  chunk.size = NULL
 )
 }
 \arguments{
-\item{Adj}{numeric (binary) matrix, adjacency matrix of the network. The nodes
-must be ordered such that the first \code{n_v} columns of \code{Adj} are variants,
+\item{adjacency}{numeric (binary) matrix, adjacency matrix of the network. The nodes
+must be ordered such that the first \code{n_v} columns of \code{adjacency} are variants,
 the next \code{n_t} columns are phenotypes, the next \code{n_q} columns are
 intermediate variables or common children, and the remaining columns (if any) are confounders.}
 
-\item{n_v, n_t, n_q}{integers, number of respectively variants, phenotypes, and
-intermediate variables or common children in the network.}
+\item{n_v, n_t, n_q}{integers, number of respectively variants (\code{V}-nodes),
+phenotypes (\code{T}-nodes), and intermediate variables or common children
+(\code{Q}-nodes) in the network.}
 
 \item{number.parents, number.children, number.neighbors}{integers, minimum number
 of parents (respectively: children, all neighbors including parents and children)
-required for a phenotype to be a hub.}
+required for a phenotype to be a hub. The default values identify a node as a
+hub when the node has ten or more neighbors, irrespective of the details of the
+numbers of parents or children.}
 
 \item{only.T}{logical, should only phenotypes neighbors be considered for hub
 identification? Defaults to \code{only.T = TRUE}. Setting \code{only.T = FALSE}
@@ -36,12 +41,13 @@ common children, and confounders) are considered.}
 
 \item{all.conditions}{logical, should all the conditions for \code{number.parents},
 \code{number.children}, and \code{number.neighbors} be simultaneously satisfied
-for a phenotype to be a hub? The default is \code{all.conditions = TRUE}.
-Setting \code{all.conditions = FALSE} means that one condition is sufficient
-for a phenotype to be a hub.}
+for a phenotype to be a hub? The default is \code{all.conditions = FALSE}.}
+
+\item{cl, chunk.size}{optional arguments for parallel computing, passed to
+\link[parallel]{parLapply} (when supplied).}
 }
 \value{
-a list with two elements:
+An object of class \code{'hubs'}, a list with two elements:
 \describe{
 \item{hubs}{an integer vector of the positions of the hubs in the sub-network of phenotypes.}
 \item{number.neighbors}{a six-column matrix of where the \code{i}th row corresponds to the \code{i}th phenotype in the network;
@@ -49,6 +55,10 @@ and the columns indicate the numbers of parent nodes which are variants, phenoty
 intermediate variables or common children, and confounders; and the numbers of child nodes
 which are phenotypes, or intermediate variables or common children.}
 }
+
+The class \code{'hubs'} has two methods: \code{update} to re-find hubs using
+a new set of parameters (except the \code{adjacency} of the network), and
+\code{print} to summarize the identified hubs.
 }
 \description{
 Find phenotypes that are hubs in a genomic network including variants,
@@ -58,15 +68,22 @@ phenotypes, intermediate variables, common children, and confounders.
 # Simulate a DAG
 set.seed(21000)
 library(MRGNgeneral)
-data <- sample.graph.data (number.of.T = 100,
+data <- sample.graph.data (n_t = 100,
                            conf.num.vec = c(W = 50, Z = 50, U = 200, K = 0),
                            sample.size = 500)
 
-# Find hubs
-Hubs = find.hubs (data$Adjacency,
-                  n_v = 100, n_t = 100, n_q = 100,
-                  all.conditions = TRUE)
-Hubs$hubs
-Hubs$number.neighbors[Hubs$hubs,]
+# Find hubs with at least 10 T-neighbors
+Hubs <- find.hubs (data$adjacency,
+                   n_v = 100, n_t = 100, n_q = 100)
+Hubs
+
+# Update and print hubs with at least 20 neighbors (any type),
+#                               including at least 10 parents.
+Hubs <- print(Hubs,
+              number.parents = 10,
+              number.children = 2,
+              number.neighbors = 20,
+              only.T = FALSE,
+              all.conditions = TRUE)
 
 }

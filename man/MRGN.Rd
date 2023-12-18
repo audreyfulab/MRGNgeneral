@@ -8,12 +8,12 @@ MRGN(
   data,
   scale.data = TRUE,
   Qlabels = NULL,
-  p,
-  q,
-  r = length(Qlabels),
-  u = m - p - q - r,
+  n_t,
+  n_v,
+  n_q = length(Qlabels),
+  n_u = m - n_t - n_v - n_q,
   confounders = list(),
-  Adj,
+  adjacency,
   is.CNA = FALSE,
   alpha = 0.01,
   use.perm = TRUE,
@@ -27,7 +27,7 @@ MRGN(
   stringent = TRUE,
   analyse.triplets = TRUE,
   solve.conflicts = TRUE,
-  method = "naive",
+  method = "conservative",
   maxiter = NULL,
   parallel = FALSE,
   cl = parallel:::getDefaultCluster(),
@@ -41,20 +41,58 @@ MRGN(
 \item{Qlabels}{labels indicating columns of \code{data} which are
 \code{Q}-nodes (common children or intermediate variables).}
 
-\item{confounders}{a list of length \code{p} giving the set of known confounders
-for each phenotype, as returned by \link{get.conf.sets} with the option
-\code{return.for.trios = FALSE}.}
+\item{n_v, n_t, n_q, n_u}{integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
+in \code{data}.}
 
-\item{Adj}{input adjacency matrix (binary)}
+\item{confounders}{a list of length \code{n_t} giving the set of known/selected
+confounders for each phenotype, as returned by \link{get.conf.sets}.}
+
+\item{adjacency}{input adjacency matrix (binary)}
 
 \item{stringent}{logical, should edges not appearing in \code{'M1'} and
 \code{'M2'} trio structures be dropped during adjacency matrix update?
 Passed to \link{update.adjacency.matrix}.}
+
+\item{cl, chunk.size}{optional arguments for parallel computing, passed to
+\link{parLapply}{parallel} (when supplied).}
 }
 \description{
 Infer a causal network/graph with directed and undirected edges from observational data.
 }
+\examples{
+## Run MRGN on the 'networkA11' data
+library (MRGNgeneral)
+data ('networkA11')  # .rda structure with simulated data
+data ('confsetsA11') #  obtained from get.conf.sets() on 'networkA11'
+
+# Build a graph skeleton
+Adjacency0 <- get.initial.skeleton (data = networkA11$data,
+                                    n_v = networkA11$dims$n_v,
+                                    n_t = networkA11$dims$n_t,
+                                    threshold_v = 0.2,
+                                    threshold_m = 0.05,
+                                    conf.sets = confsetsA11)
+
+
+# Run MRGN: running time ~ 5 minutes!
+\dontrun{
+mrgninferA11 <- MRGN(data = networkA11$data,
+                     n_v = networkA11$dims$n_v,
+                     n_t = networkA11$dims$n_t,
+                     Qlabels = confsetsA11$WZindices,
+                     n_q = length(confsetsA11$WZindices),
+                     n_u = networkA11$dims$n_w + networkA11$dims$n_z +
+                       networkA11$dims$n_u + networkA11$dims$n_k +
+                       networkA11$dims$n_i - length(confsetsA11$WZindices),
+                     adjacency = Adjacency0,
+                     confounders = confsetsA11$confounders,
+                     alpha = 0.01,
+                     FDRcontrol = 'bonferroni',
+                     fdr = 0.05,
+                     verbose = TRUE)
+}
+}
 \seealso{
-\link{infer.trio} for inferring edges in small networks of one
+\link{infer.trio}{MRGN} for inferring edges in small networks of one
 genetic variant and only two genes.
 }

@@ -5,11 +5,11 @@
 \title{Form trios involving genetic variants}
 \usage{
 enumerate.trios(
-  i = 1:q,
-  Adj,
-  p = NROW(Adj) - q,
-  q = length(i),
-  r = NROW(Adj) - p - q,
+  i = 1:n_v,
+  adjacency,
+  n_t = NROW(adjacency) - n_v,
+  n_v = length(i),
+  n_q = NROW(adjacency) - n_t - n_v,
   VTT = TRUE,
   cl,
   chunk.size = NULL
@@ -17,18 +17,19 @@ enumerate.trios(
 }
 \arguments{
 \item{i}{integer vector, position of the target \code{V}-nodes (genetic
-variants) in the adjacency matrix \code{Adj}: \code{i} must satisfy
-\code{1 ≤ i ≤ q} (see the argument \code{q}). For convenience,
-\code{i} is coerced to the integer type using the function \link{as.integer}.
-Defaults to \code{i = 1:q} (i.e. all genetic variants).}
+variants) in the adjacency matrix \code{adjacency}: \code{i} must satisfy
+\code{1 ≤ i ≤ n_v} (see the argument \code{n_v}).
+Defaults to \code{i = 1:n_v} (i.e. all genetic variants).}
 
-\item{Adj}{numeric, an adjacency matrix, i.e., a binary symmetric matrix
-(graph object). The first \code{q} columns of \code{Adj} represent
-\code{V}-nodes, and the last \code{p} columns of \code{Adj} represent
-\code{T}-nodes (expressions/phenotypes). Only the upper triangular part of
-\code{Adj} is actually used.}
+\item{adjacency}{numeric, an adjacency matrix, i.e., a binary square matrix
+with zeros on the main diagonal.
+The first \code{n_v} columns of \code{adjacency} represent
+\code{V}-nodes, the next \code{n_t} columns represent \code{T}-nodes
+(expressions/phenotypes), and the last \code{n_q} columns represent
+\code{Q}-nodes (intermediate variables and common children).
+Only the upper triangular part of \code{adjacency} is actually used.}
 
-\item{p, q, r}{integers, respectively: number of \code{T}-nodes (non-instrumental variables),
+\item{n_t, n_v, n_q}{integers, respectively: number of \code{T}-nodes (non-instrumental variables),
 number of \code{V}-nodes (instrumental variables), and number of \code{Q}-nodes
 (confounding variables: intermediate variables and common children).}
 
@@ -47,9 +48,9 @@ genuine default. If missing, the registered default cluster (which can be
 }
 \value{
 A list of matrices, one for each unique element of \code{i}. If the
-input adjacency matrix \code{Adj} has non-\code{NULL} colnames (as returned
+input adjacency matrix \code{adjacency} has non-\code{NULL} colnames (as returned
 by \link{colnames}), then the elements of the list are named after the
-corresponding columns (from the first \code{q} columns). Otherwise, they are
+corresponding columns (from the first \code{n_v} columns). Otherwise, they are
 named as 'Vi' where 'i' are the unique elements of \code{i}.
 
 For each matrix, each row gives the column numbers of variables forming a
@@ -74,7 +75,7 @@ trio with two different \code{Q}-nodes is not allowed.
 }
 \seealso{
 \link{enumerate.new.trios} to enumerate additional trios after updating the
-adjacency matrix \code{Adj}.
+adjacency matrix \code{adjacency}.
 
 \link{enumerate.triplets} to enumerate trios involving no genetic
 variant (only \code{T} and \code{Q}-nodes).

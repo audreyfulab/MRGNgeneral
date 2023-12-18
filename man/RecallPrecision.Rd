@@ -2,18 +2,23 @@
 % Please edit documentation in R/ModifiedRecallPrecision.R
 \name{RecallPrecision}
 \alias{RecallPrecision}
-\title{Calculate recall and precision for two graphs}
+\title{Calculate recall and precision for an inferred graph given the true graph}
 \usage{
 RecallPrecision(g1, g2, GV, includeGV, edge.presence = 1, edge.direction = 0.5)
 }
 \arguments{
-\item{g1}{First graph object, from the true graph}
+\item{g1}{First graph object, the true graph.}
 
-\item{g2}{Second graph object, from the inferred graph}
+\item{g2}{Second graph object, the inferred graph.}
 
-\item{GV}{The number of genetic variants (SNPs/indels/CNV/eQTLs) in the input data matrix. For example, if the data has one variant, which is in the first column, then GV = 1. If there are two variants, which are in the first and second Columns, then GV = 2. If there are no variants, then GV = 0.}
+\item{GV}{The number of genetic variants (SNPs/indels/CNV/eQTLs) in the input
+data matrix. For example, if the data has one variant, which is in the first
+column, then GV = 1. If there are two variants, which are in the first and
+second Columns, then GV = 2. If there are no variants, then GV = 0.}
 
-\item{includeGV}{If \code{TRUE}, include edges involving genetic variants (GV) when calculating recall and precision. If FALSE, exclude edges involving genetic variants (GV) when calculating recall and precision.}
+\item{includeGV}{If \code{TRUE}, include edges involving genetic variants (GV)
+when calculating recall and precision. If FALSE, exclude edges involving
+genetic variants (GV) when calculating recall and precision.}
 
 \item{edge.presence}{The weight for an edge being present.}
 
@@ -43,7 +48,7 @@ Precision = (# edges correctly identified in inferred graph) / (# edges in infer
 We consider it more important to be able to identify the presence of an edge
 than to also get the direct correct. Therefore, we assign 1 as the default
 to an edge with the correct direction and 0.5 to an edge with the wrong
-direction or no direction \insertCite{badsha2019learning,badsha2021mrpc}{MRGN}.
+direction or no direction \insertCite{badsha2019learning,badsha2021mrpc}{MRGNgeneral}.
 }
 \examples{
 # True model

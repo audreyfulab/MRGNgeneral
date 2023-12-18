@@ -16,8 +16,8 @@ analyse.trio.set(
   pi0.meth = "bootstrap",
   data,
   confounders,
-  p,
-  q,
+  n_v,
+  n_t,
   use.perm,
   gamma,
   is.CNA,
@@ -51,18 +51,20 @@ comparisons. Either \code{'qvalue'}, or any method accepted by \link{p.adjust}{s
 
 \item{data}{\code{data.frame} object where columns indexed in \code{trio.set},
 \code{Qlabels}, \code{confounders} are taken from for trio analysis.
-The first \code{q} columns are \code{V}-nodes (variants), the next \code{p}
-columns are \code{T}-nodes (genes), and the remaining columns are confounders,
-common children, and intermediate variables.}
+The first \code{n_t} columns are \code{V}-nodes (variants), the next \code{n_t}
+columns are \code{T}-nodes (genes), and the remaining columns are
+\code{Q}-nodes (common children and intermediate variables), and
+\code{U}-nodes (confounders).}
 
-\item{confounders}{\code{p}-list of column numbers indexing confounders for each \code{T}-node in \code{data}.}
+\item{confounders}{\code{n_t}-list of column numbers indexing confounders for each \code{T}-node in \code{data}.}
 
-\item{p, q}{integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
+\item{n_v, n_t}{integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
 in \code{data}.}
 
 \item{use.perm, gamma, is.CNA, nperms, verbose}{arguments passed to \link{infer.trio}{MRGN}.}
 
-\item{cl, chunk.size}{optional arguments, passed to \link{parLapply}{parallel} (when supplied) for parallel computing.}
+\item{cl, chunk.size}{optional arguments for parallel computing, passed to
+\link{parLapply}{parallel} (when supplied).}
 }
 \description{
 This function takes a set of trios including each a genetic variant,

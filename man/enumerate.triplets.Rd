@@ -5,10 +5,10 @@
 \title{List all (update-able) trios involving only phenotypes}
 \usage{
 enumerate.triplets(
-  Adj,
-  p,
-  q,
-  r = NROW(Adj) - p - q,
+  adjacency,
+  n_t,
+  n_v,
+  n_q = NROW(adjacency) - n_t - n_v,
   TTT = TRUE,
   return.3 = FALSE,
   cl,
@@ -16,21 +16,21 @@ enumerate.triplets(
 )
 }
 \arguments{
-\item{Adj}{numeric, a binary matrix indicating adjacency and possibly edge
+\item{adjacency}{numeric, a binary matrix indicating adjacency and possibly edge
 directions (i.e. a non-directed, or a partially directed graph). All the
-\code{p} columns of \code{Adj} represent \code{T}-nodes (phenotypes). As such,
-\code{Adj} will in general be an extract of a larger adjacency matrix (last
-\code{p} rows and columns in this package). See Section \code{Details} for more
-on the interpretation of the values \code{0/1} in \code{Adj} for this function.}
+\code{n_t} columns of \code{adjacency} represent \code{T}-nodes (phenotypes). As such,
+\code{adjacency} will in general be an extract of a larger adjacency matrix (last
+\code{n_t} rows and columns in this package). See Section \code{Details} for more
+on the interpretation of the values \code{0/1} in \code{adjacency} for this function.}
 
-\item{p, q, r}{integers, respectively: number of \code{T}-nodes (non-instrumental variables),
+\item{n_t, n_v, n_q}{integers, respectively: number of \code{T}-nodes (non-instrumental variables),
 number of \code{V}-nodes (instrumental variables), and number of \code{Q}-nodes
 (confounding variables: intermediate variables and common children).}
 
 \item{TTT}{logical indicating the composition of desired trios. If true (the default),
 only trios not involving a \code{Q}-node are formed, i.e. a trio contains one
 three \code{T}-nodes. Otherwise, only trios involving \code{Q}-nodes are
-formed, i.e.  a trio contains two \code{T}-nodes, and one \code{Q}-node.}
+formed, i.e. a trio contains two \code{T}-nodes, and one \code{Q}-node.}
 
 \item{return.3}{logical, should triplets of type (3) be returned as an
 attribute named \code{triplet.3} (of class \code{matrix}) for the output?
@@ -66,7 +66,7 @@ Enumerate update-able triplets involving only expressions/phenotypes
 (no genetic variant) based on an adjacency matrix. Not a user level function.
 }
 \details{
-The binary matrix \code{Adj} represent a non-directed, or a partially
+The binary matrix \code{adjacency} represent a non-directed, or a partially
 directed graph. For two nodes \code{Ti} and \code{Tj}, the matrix elements
 \code{a_ij} and \code{a_ji} define both the presence of an edge and the
 direction of the edge if any: an edge is present between nodes \code{Ti}
@@ -113,5 +113,5 @@ on 'Tj' and 'Tk' (or 'Ti'), and confounding variables, if any. If a triplet
 is of type \code{2}, then 'Ti' is the parent node (i.e. 'Ti' points to 'Tj').
 }
 \seealso{
-\link{enumerate.trios}.
+\link{enumerate.trios} to enumerate trios involving genetic variants.
 }

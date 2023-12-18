@@ -5,16 +5,16 @@
 \title{Update an adjacency matrix}
 \usage{
 \method{update}{adjacency.matrix}(
-  Adj,
-  p,
-  q,
-  r,
+  adjacency,
+  n_t,
+  n_v,
+  n_q,
   trio.set,
   inferred.models,
   stringent = FALSE,
   add.edges = TRUE,
   solve.conflicts = TRUE,
-  method = "naive",
+  method = "conservative",
   added.edges = NULL,
   dropped.edges = NULL,
   cl = NULL,
@@ -23,10 +23,10 @@
 )
 }
 \arguments{
-\item{Adj}{numeric, an adjacency matrix}
+\item{adjacency}{numeric, an adjacency matrix}
 
-\item{q}{integer scalar, number of genetic variants in \code{Adj},
-not required when \code{solve.conflicts = FALSE}.}
+\item{n_v, n_t}{integer scalars, number of genetic variants (\code{n_v}), and
+target phenotypes (\code{n_t}) in \code{adjacency}.}
 
 \item{trio.set}{numeric, a matrix where each row indicates the column numbers
 of variables forming a trio.
@@ -37,9 +37,10 @@ of a genetic variant (first element), and the column numbers of two
 expressions/phenotypes (second and third columns).
 
 A 4-column matrix \code{trio.set} corresponds to trios involving only
-expressions/phenotypes, no genetic variant(s), i.e. each row of \code{trio.set}
-indicates the column numbers of three T-nodes, and the type of triplet
-(last column). See \link{enumerate.triplets} for details on triplet types.}
+expressions/phenotypes, no genetic variant, i.e. each row of \code{trio.set}
+indicates the column numbers of three phenotypes (\code{T} or \code{Q}-node),
+and the type of triplet (last column). See \link{enumerate.triplets} for
+details on triplet types.}
 
 \item{inferred.models}{a character vector of length the number of rows in
 \code{trio.set}. Each elements of \code{inferred.models} must be one of
@@ -60,7 +61,7 @@ into evidence and requires a method to deal with each type of errors.}
 \item{method}{character, only used if \code{solve.conflicts = TRUE}.
 The method to be used to solve conflicts. The available \code{method} are:
 
-\code{naive}: conflicts about the presence of an edge are solve by including
+\code{conservative}: conflicts about the presence of an edge are solve by including
 an edge when at least one trio analysis inferred an edge; conflicts about an
 edge direction are solve by letting the edge undirected.
 \code{add_methods}: add further method(s).}
