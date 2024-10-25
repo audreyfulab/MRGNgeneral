@@ -3,6 +3,7 @@
 S3method(plot,adjacency.matrix)
 S3method(print,hubs)
 S3method(print,summary.hubs)
+S3method(reorder,nre.run.methods)
 S3method(update,hubs)
 export(MRGN)
 export(RecallPrecision)

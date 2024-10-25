@@ -35,24 +35,24 @@ candidate confounding variables (\code{C}-nodes).
 This function implements \code{Step 2} of the MRGN general algorithm.
 }
 \examples{
-#Raw data (networka11) & confounding variable selection result (confsetsa11)
+#Raw data (networkA11) & confounding variable selection result (confsetsA11)
 library(MRGNgeneral)
-data(networka11)
-data(confsetsa11)
+data(networkA11)
+data(confsetsA11)
 
 #Graph skeleton
-Adjacency0 <- get.initial.skeleton (data = networka11$data,
-                                    n_v = networka11$dims$n_v,
-                                    n_t = networka11$dims$n_t,
+Adjacency0 <- get.initial.skeleton (data = networkA11$data,
+                                    n_v = networkA11$dims$n_v,
+                                    n_t = networkA11$dims$n_t,
                                     threshold_v = 0.2,
                                     threshold_m = 0.05,
-                                    conf.sets = confsetsa11)
+                                    conf.sets = confsetsA11)
 
 
 #Recall and precision of the skeleton
-Recall_Precision <- RecallPrecision(as (networka11$adjacency, 'graphNEL'),
+Recall_Precision <- RecallPrecision(as (networkA11$adjacency, 'graphNEL'),
                                     as (Adjacency0, 'graphNEL'),
-                                    GV = networka11$dims$n_v,
+                                    GV = networkA11$dims$n_v,
                                     includeGV = TRUE,
                                     edge.presence = 1.0,
                                     edge.direction = 0.5)

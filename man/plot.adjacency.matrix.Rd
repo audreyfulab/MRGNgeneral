@@ -38,13 +38,13 @@ The function's output is random.
 Set a random generator seed using \link{set.seed} for reproducibility.
 }
 \examples{
-### Load the network 'networka11'
+### Load the network 'networkA11'
 library(MRGNgeneral)
-data(networka11)
+data(networkA11)
 
 ### Adjacency matrix of a subset of the network
 adjacency <- structure(
-  networka11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
+  networkA11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
                        c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28')],
   class = 'adjacency.matrix')
 adjacency
