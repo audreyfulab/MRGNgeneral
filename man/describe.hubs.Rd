@@ -128,12 +128,11 @@ related precision ( \emph{vii}- \code{Parent.rec} and \emph{viii}- \code{Parent.
 related precision ( \emph{ix}- \code{Child.rec} and \emph{x}- \code{Child.pre}).
 }
 
-These 10 measures (\emph{i} - \emph{x}) are returned in a 10-column matrix named \code{raw.measures},
+These 10 measures (\emph{i} to \emph{x}) are returned in a 10-column matrix named \code{raw.measures},
 with one row for each found hub. If no parent or child node is found for a hub,
 the corresponding measures are \code{NA}s.
 
 The association measure used when \code{method} is a character is \link[ppcor]{pcor}.
-
 A named function \code{combine.hubs} must be available in the calling environment,
 and return a numeric scalar output for a numeric vector input. For two elements
 \code{a} and \code{b}, \code{combine.hubs(c(a, b))} should be in the closed \code{[a, b]}.

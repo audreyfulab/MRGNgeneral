@@ -43,13 +43,13 @@
 # layout_as_bipartite(), layout_as_star(), layout_as_tree(), layout_in_circle(), layout_nicely(), layout_on_grid(), layout_on_sphere(), layout_randomly(), layout_with_dh(), layout_with_fr(), layout_with_gem(), layout_with_graphopt(), layout_with_kk(), layout_with_lgl(), layout_with_mds(), layout_with_sugiyama()
 #'
 #' @examples
-#' ### Load the network 'networka11'
+#' ### Load the network 'networkA11'
 #' library(MRGNgeneral)
-#' data(networka11)
+#' data(networkA11)
 #'
 #' ### Adjacency matrix of a subset of the network
 #' adjacency <- structure(
-#'   networka11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
+#'   networkA11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
 #'                        c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28')],
 #'   class = 'adjacency.matrix')
 #' adjacency

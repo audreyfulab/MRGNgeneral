@@ -69,7 +69,8 @@
 #' ## Compare the result with the expectation for V-nodes selected for individual 1
 #' cbind(# old = indices of selected V-nodes in the original dataset,
 #'       old = confsetsa11$Vconfounders[[1]],
-#'       # new = indices of the same selected V-nodes in the dataset with columns re-ordered using VTCorder,
+#'       # new = indices of the same selected V-nodes 
+#'       # in the dataset with columns re-ordered using VTCorder,
 #'       new = new.confsetsa11$Vconfounders[[1]],
 #'       # expected.new = what new is supposed to be.
 #'       expected.new = sapply(confsetsa11$Vconfounders[[1]],
