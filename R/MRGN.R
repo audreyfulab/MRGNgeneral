@@ -28,10 +28,10 @@
 #' Passed to \link{update.adjacency.matrix}.
 #'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
-#' \link{parLapply}{parallel} (when supplied).
+#' \link[parallel]{parLapply} (when supplied).
 #'
 #'
-#' @seealso \link{infer.trio}{MRGN} for inferring edges in small networks of one
+#' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
 #' @export MRGN
@@ -860,60 +860,60 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
 # @exportS3Method print MRGN
 #
 # Not working: save arguments instead of the call. The call is only useful when extracted in the environment it was made.
-print.MRGN <- function (x, TTonly = FALSE, format = "adjacency",
-                        digits = max(3, getOption("digits") - 3),
-                        ...) {
-  n_t <- eval(x$call$n_t)
-  n_v <- eval(x$call$n_v)
-  n_q <- if (TTonly) 0 else eval(x$call$n_q)
-  adjacency <- as.matrix(x$adjacency[1:(n_t+n_v+n_q), 1:(n_t+n_v+n_q)])
-
-  switch(format,
-         graphNEL = {
-           print(as(adjacency, "graphNEL"), digits = digits, ...)
-         },
-         igraph = { # igraph object
-           print(igraph::graph_from_adjacency_matrix(adjacency), digits = digits, ...)
-         },
-         {
-           cat("\nCall:  ", paste(deparse(x$call), sep = "\n", collapse = "\n"),
-               "\n\n", sep = "")
-
-           #AugAdj <- adjacency + t(adjacency)
-           #AugAdj[upper.tri(AugAdj)] <- 0
-
-           #DirEdges <- which(AugAdj == 1, arr.ind = TRUE)
-           #UndirEdges <- which(AugAdj == 2, arr.ind = TRUE)
-
-           #NROW(DirEdges)
-           #NROW(UndirEdges)
-
-           EdgeDirCount <- adjacency[lower.tri(adjacency)] + adjacency[upper.tri(adjacency)]
-           unidir <- EdgeDirCount == 1
-           nb.uni <- sum(unidir)
-           bidir <- EdgeDirCount == 2
-           nb.bi <- sum(bidir)
-           nb.edges <- nb.uni + nb.bi
-           cat(paste0(" MRGN Inferred a Direct Acyclic Graph with: \n"))
-           cat(paste0("    ", n_t+n_v+n_q, " nodes \n"))
-           cat(paste0("        ", n_v, " variants (V-nodes) \n"))
-           cat(paste0("        ", n_t, " genes (T-nodes) \n"))
-           if (n_q > 0)
-             cat(paste0("        ", n_q, " intermadiate variables or common children (Q-nodes) \n"))
-           if (nb.uni > 0 & nb.bi > 0)
-             cat(paste0("    ", nb.edges, " edges \n"))
-           if (nb.uni > 0) {
-             if (nb.bi > 0)
-               cat(paste0("        ", nb.uni, " directed edges \n"))
-             else
-               cat(paste0("    ", nb.uni, " directed edges \n"))
-           }
-           if (nb.bi > 0) {
-             if (nb.uni > 0)
-               cat(paste0("        ", nb.bi, " undirected edges \n"))
-             else
-               cat(paste0("    ", nb.bi, " undirected edges \n"))
-           }
-
-         })
-}
+#print.MRGN <- function (x, TTonly = FALSE, format = "adjacency",
+#                        digits = max(3, getOption("digits") - 3),
+#                        ...) {
+#  n_t <- eval(x$call$n_t)
+#  n_v <- eval(x$call$n_v)
+#  n_q <- if (TTonly) 0 else eval(x$call$n_q)
+#  adjacency <- as.matrix(x$adjacency[1:(n_t+n_v+n_q), 1:(n_t+n_v+n_q)])
+#
+#  switch(format,
+#         graphNEL = {
+#           print(as(adjacency, "graphNEL"), digits = digits, ...)
+#         },
+#         igraph = { # igraph object
+#           print(igraph::graph_from_adjacency_matrix(adjacency), digits = digits, ...)
+#         },
+#         {
+#           cat("\nCall:  ", paste(deparse(x$call), sep = "\n", collapse = "\n"),
+#               "\n\n", sep = "")
+#
+#           #AugAdj <- adjacency + t(adjacency)
+#           #AugAdj[upper.tri(AugAdj)] <- 0
+#
+#           #DirEdges <- which(AugAdj == 1, arr.ind = TRUE)
+#           #UndirEdges <- which(AugAdj == 2, arr.ind = TRUE)
+#
+#           #NROW(DirEdges)
+#           #NROW(UndirEdges)
+#
+#           EdgeDirCount <- adjacency[lower.tri(adjacency)] + adjacency[upper.tri(adjacency)]
+#           unidir <- EdgeDirCount == 1
+#           nb.uni <- sum(unidir)
+#           bidir <- EdgeDirCount == 2
+#           nb.bi <- sum(bidir)
+#           nb.edges <- nb.uni + nb.bi
+#           cat(paste0(" MRGN Inferred a Direct Acyclic Graph with: \n"))
+#           cat(paste0("    ", n_t+n_v+n_q, " nodes \n"))
+#           cat(paste0("        ", n_v, " variants (V-nodes) \n"))
+#           cat(paste0("        ", n_t, " genes (T-nodes) \n"))
+#           if (n_q > 0)
+#             cat(paste0("        ", n_q, " intermadiate variables or common children (Q-nodes) \n"))
+#           if (nb.uni > 0 & nb.bi > 0)
+#             cat(paste0("    ", nb.edges, " edges \n"))
+#           if (nb.uni > 0) {
+#             if (nb.bi > 0)
+#               cat(paste0("        ", nb.uni, " directed edges \n"))
+#             else
+#               cat(paste0("    ", nb.uni, " directed edges \n"))
+#           }
+#           if (nb.bi > 0) {
+#             if (nb.uni > 0)
+#               cat(paste0("        ", nb.bi, " undirected edges \n"))
+#             else
+#               cat(paste0("    ", nb.bi, " undirected edges \n"))
+#           }
+#
+#         })
+#}

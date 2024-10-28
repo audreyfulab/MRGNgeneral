@@ -6,50 +6,41 @@
 \usage{
 is.conf.sets (x)
 
-## S3 method for class 'conf.sets'
-reorder (conf.sets, new.order, ...)
+reorder.conf.sets (conf.sets, new.order)
 }
 \arguments{
-\item{conf.sets, x}{an object of class 'conf.sets'}
+\item{conf.sets}{an object of class 'conf.sets'}
 
 \item{new.order}{a numeric vector of the positions of variables in the original dataset,
 i.e., if e.g. the first element of \code{new.order} is 10, then the 10th variable
 in the original dataset is now in the first position in the reordered dataset.
 Note that the elements of \code{new.order} must be unique, failure of this condition
 produces an error.}
-
-\item{...}{not used.}
 }
 \value{
-\code{is.conf.sets} returns a logical, \code{TRUE} is \code{x} is \code{'conf.sets'} class object.
-
 \code{reorder.conf.sets} returns an object of class 'conf.sets' with column
-identifiers updated based on the argument \code{new.order}. However, the slot code{raw} of
+identifiers updated based on the argument \code{new.order}. However, the slot \code{raw} of
 the input 'conf.sets' is not updated. An additional slot named \code{new.order} is added
 to the returned object (the presence of this optional slot will indicate that
 all other slots have been altered using \code{new.order}).
 }
 \description{
-\code{is.conf.sets} tests if an object is of class \code{'conf.sets'}.
 \code{reorder.conf.sets} updates a \code{'conf.sets'} class object after
 the ordering of of the columns dataset used to obtain the \code{'conf.sets'}
 is modified. This is achieved by replace column labels (numbers) of selected
 confounding variables by new labels (positions) in the column-reordered dataset
 }
 \details{
-The function \code{is.conf.sets} helps stop computations early if a user specified
-\code{'conf.sets'} object is not licit.
-
 The function \code{reorder.conf.sets} is useful to test the stability of
 network inference methods.
 }
 \examples{
 ## Load data
 library(MRGNgeneral)
-data(confsetsa11)
+data(confsetsA11)
 
-## Test if 'confsetsa11' is a 'conf.sets' object
-is.conf.sets (confsetsa11)
+## Test if 'confsetsA11' is a 'conf.sets' object
+is.conf.sets (confsetsA11)
 
 ## Test if a list of one element 'a = 0' is a 'conf.sets' object
 is.conf.sets (list(a = 0))
@@ -61,16 +52,17 @@ Torder <- sample(100, size = 100, replace = FALSE) + 100 # T-nodes
 Corder <- sample(400, size = 400, replace = FALSE) + 200 # C-nodes
 VTCorder <- c(Vorder, Torder, Corder)
 
-## Update 'confsetsa11'
-new.confsetsa11 <- reorder.conf.sets (confsetsa11, new.order = VTCorder)
+## Update 'confsetsA11'
+new.confsetsA11 <- reorder.conf.sets (confsetsA11, new.order = VTCorder)
 
 ## Compare the result with the expectation for V-nodes selected for individual 1
-cbind(# old = indices of selected V-nodes in the original dataset,
-      old = confsetsa11$Vconfounders[[1]],
-      # new = indices of the same selected V-nodes in the dataset with columns re-ordered using VTCorder,
-      new = new.confsetsa11$Vconfounders[[1]],
-      # expected.new = what new is supposed to be.
-      expected.new = sapply(confsetsa11$Vconfounders[[1]],
+# old = indices of selected V-nodes in the original dataset
+# new = indices of the same selected V-nodes 
+#       in the dataset with columns re-ordered using VTCorder
+# expected.new = what new is supposed to be
+cbind(old = confsetsA11$Vconfounders[[1]],
+      new = new.confsetsA11$Vconfounders[[1]],
+      expected.new = sapply(confsetsA11$Vconfounders[[1]],
                      FUN = function(x) which(VTCorder == x)))
 }
 \seealso{

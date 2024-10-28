@@ -9,7 +9,7 @@
 #'
 #' @param i integer vector, position of the target \code{V}-nodes (genetic
 #' variants) in the adjacency matrix \code{adjacency}: \code{i} must satisfy
-#' \code{1 ≤ i ≤ n_v} (see the argument \code{n_v}).
+#' \code{1 <= i <= n_v} (see the argument \code{n_v}).
 # For convenience,
 # \code{i} is coerced to the integer type using the function \link{as.integer}.
 #' Defaults to \code{i = 1:n_v} (i.e. all genetic variants).
