@@ -45,5 +45,5 @@ strings "everything", "all.obs", "complete.obs", "na.or.complete", or
 arguments are not checked before they are passed to \link{cov}.
 }
 \seealso{
-\link{pairwise.cor.test}
+\link[MESS]{pairwise.cor.test}
 }

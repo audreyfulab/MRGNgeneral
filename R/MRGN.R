@@ -28,10 +28,10 @@
 #' Passed to \link{update.adjacency.matrix}.
 #'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
-#' \link{parLapply}{parallel} (when supplied).
+#' \link[parallel]{parLapply} (when supplied).
 #'
 #'
-#' @seealso \link{infer.trio}{MRGN} for inferring edges in small networks of one
+#' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
 #' @export MRGN

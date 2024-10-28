@@ -54,7 +54,7 @@ confounders for each phenotype, as returned by \link{get.conf.sets}.}
 Passed to \link{update.adjacency.matrix}.}
 
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
-\link{parLapply}{parallel} (when supplied).}
+\link[parallel]{parLapply} (when supplied).}
 }
 \description{
 Infer a causal network/graph with directed and undirected edges from observational data.
@@ -93,6 +93,6 @@ mrgninferA11 <- MRGN(data = networkA11$data,
 }
 }
 \seealso{
-\link{infer.trio}{MRGN} for inferring edges in small networks of one
+\link[MRGN]{infer.trio} for inferring edges in small networks of one
 genetic variant and only two genes.
 }

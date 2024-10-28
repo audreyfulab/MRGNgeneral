@@ -23,7 +23,7 @@ reorder.nre.run.methods <- function (seed = NULL,
   n_q <- length(conf.sets$WZindices)
   n_vtq <- n_vt + n_q
 
-  ### Save random generator state to restitute it later
+  ### Save random seed
   saved.seed <- .Random.seed
   if(!is.null(seed)) {
     set.seed(seed)

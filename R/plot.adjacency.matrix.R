@@ -1,7 +1,7 @@
 #' Plot an adjacency matrix
 #'
 #' This function takes an adjacency matrix representing an acyclic graph
-#' and calls \link{igraph::plot.igraph} to plot the graph.
+#' and calls \link[igraph]{plot.igraph} to plot the graph.
 #'
 #' @param adjacency A square matrix of class \code{adjacency}. This is passed to
 #' \link{is.adjacency.matrix} for checking.
@@ -26,7 +26,7 @@
 #' plot(adjacency, ...)
 #'
 #' @details
-#' The function's output is random.
+#' The function's output has a random layout.
 #' Set a random generator seed using \link{set.seed} for reproducibility.
 #'
 #'
