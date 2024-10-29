@@ -23,7 +23,7 @@
 #'
 #' @usage
 #' # S3 method for class 'adjacency.matrix'
-#' plot(adjacency, ...)
+#' \\method{plot}{adjacency.matrix}(adjacency, ...)
 #'
 #' @details
 #' The function's output has a random layout.
