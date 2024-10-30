@@ -23,17 +23,17 @@
 #'
 #' @usage
 #' # S3 method for class 'adjacency.matrix'
-#' plot(adjacency, ...)
+#' \method{plot}{adjacency.matrix}(adjacency, n_vt, mode, layout, vertex.color, edge.arrow.size, ...)
 #'
 #' @details
 #' The function's output has a random layout.
 #' Set a random generator seed using \link{set.seed} for reproducibility.
 #'
+#' @method plot adjacency.matrix
 #'
 #' @return Returns \code{NULL}, invisibly.
 #'
-#' @exportS3Method plot adjacency.matrix
-#' @export plot.adjacency.matrix
+#' @export 
 # @references
 #     \insertAllCited{}
 #' @importFrom igraph graph_from_adjacency_matrix

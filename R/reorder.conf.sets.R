@@ -1,6 +1,4 @@
 #'
-#' Auxiliaries for \code{'conf.sets'} class object manipulations
-#'
 #' \code{reorder.conf.sets} updates a \code{'conf.sets'} class object after
 #' the ordering of of the columns dataset used to obtain the \code{'conf.sets'}
 #' is modified. This is achieved by replace column labels (numbers) of selected
@@ -24,7 +22,6 @@
 #' network inference methods.
 #'
 #' @export reorder.conf.sets
-#' @export reorder.set
 #'
 #' @return
 #' \code{reorder.conf.sets} returns an object of class 'conf.sets' with column
@@ -111,6 +108,7 @@ reorder.conf.sets <- function (conf.sets, new.order) {
 # is transformed into y = c(3, 1, 5) because: 2 in x is in the 3rd position in new.order,
 #                                             5 in x is in the 1st position in new.order, and
 #                                             7 in x is in the 5th position in new.order
+#' @export reorder.set
 reorder.set <- function(x, new.order) {
   if (is.null(x)) {
     return(NULL)

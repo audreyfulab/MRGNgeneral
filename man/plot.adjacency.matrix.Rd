@@ -5,7 +5,7 @@
 \title{Plot an adjacency matrix}
 \usage{
 # S3 method for class 'adjacency.matrix'
-plot(adjacency, ...)
+\method{plot}{adjacency.matrix}(adjacency, n_vt, mode, layout, vertex.color, edge.arrow.size, ...)
 }
 \arguments{
 \item{adjacency}{A square matrix of class \code{adjacency}. This is passed to

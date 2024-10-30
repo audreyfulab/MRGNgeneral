@@ -109,8 +109,7 @@
 #' of hubs' association with their neighbors, and recall and precision of
 #' confounder selection and network inference.
 #'
-#' @export describe.hubs
-#' @exportS3Method print summary.hubs
+#' @export
 #'
 #' @importFrom ppcor pcor
 #'
@@ -587,6 +586,8 @@ hatcorfun <- function (k, j, conf.sets, data, n_v, method) {
 }
 
 # Print an object of class 'summary.hubs'
+#' @method print summary.hubs
+#' @export
 print.summary.hubs <- function (x, digits = max(3, getOption("digits") - 3),
                                 ...) {
   # Print the call tha generated 'x'

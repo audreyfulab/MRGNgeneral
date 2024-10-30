@@ -2,7 +2,10 @@
 % Please edit documentation in R/reorder.conf.sets.R
 \name{reorder.conf.sets}
 \alias{reorder.conf.sets}
-\title{Auxiliaries for \code{'conf.sets'} class object manipulations}
+\title{\code{reorder.conf.sets} updates a \code{'conf.sets'} class object after
+the ordering of of the columns dataset used to obtain the \code{'conf.sets'}
+is modified. This is achieved by replace column labels (numbers) of selected
+confounding variables by new labels (positions) in the column-reordered dataset}
 \usage{
 is.conf.sets (x)
 
