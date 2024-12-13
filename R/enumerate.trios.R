@@ -92,7 +92,7 @@ enumerate.trios <- function (i = 1:n_v,
       stop("'i' must be a non-NULL vector of integers.")
     i <- as.integer(unique(i))
     if (any(c(i < 1, i > n_v)))
-      stop("The vector 'i' must satisfy '1 ≤ i ≤ n_v' element-wise.")
+      stop("The vector 'i' must satisfy '1 <= i <= n_v' element-wise.")
   }
 
   stopifnot(is.logical(VTT[1]))

@@ -73,10 +73,8 @@ edges2adj <- function(edges, pattern = NULL, diag = FALSE) {
       }
       indices <- t(sapply(edges,
                          FUN = function (index) {
-                           c(as.numeric(stringr::str_split(index[1],
-                                                           pattern = pattern)[[1]][2]),
-                             as.numeric(stringr::str_split(index[2],
-                                                           pattern = pattern)[[1]][2]))
+                           c(as.numeric(strsplit(index[1], split = pattern)[[1]][2]),
+                             as.numeric(strsplit(index[2], split = pattern)[[1]][2]))
                          }))
     }
     else
