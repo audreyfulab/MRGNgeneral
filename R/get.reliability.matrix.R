@@ -1,7 +1,7 @@
 # Determine how reliable an inferred edge is
 # Reliability of edges inferred present by MRGNgeneral
-# object = of class MRGNgeneral
-get.reliability.matrix <- function (object, only.edges = FALSE) {
+# object = of class MRGN
+get.reliability.MRGN <- function (object, only.edges = FALSE) {
   p <- eval(object$call$p)
   q <- eval(object$call$q)
   r <- eval(object$call$r)

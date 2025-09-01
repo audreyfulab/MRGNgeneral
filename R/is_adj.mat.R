@@ -14,8 +14,6 @@
 #'
 #' @return logical indicating if \code{object} is an adjacency matrix or not.
 #'
-#' @export
-#' 
 #' @examples
 #'
 # \dontrun{
@@ -27,7 +25,7 @@
 #'
 #' is.adjacency.matrix (Adj)
 #'
-#' is.adjacency.matrix (Adj + diag(x=rep(1,3)))
+#' is.adjacency.matrix (Adj + diag(1))
 #'
 # }
 #'

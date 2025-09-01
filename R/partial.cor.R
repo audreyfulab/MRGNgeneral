@@ -38,7 +38,7 @@
 #' Either \code{partial.cor} or \code{marginal2partial.cor} returns a square
 #' matrix of partial correlations.
 #'
-## #' @seealso \link[MESS]{pairwise.cor.test}
+#' @seealso \link{pairwise.cor.test}
 # @seealso \link{robust.cor}
 #'
 

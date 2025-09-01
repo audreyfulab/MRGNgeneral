@@ -37,7 +37,7 @@ will remove duplicates but will keep the name attributes of the list elements, i
 
 \item{make.vector.names}{logical, name the elements of the returned list?
 If \code{TRUE} (the default), the \code{name} attribute of the elements of the
-\code{...} arguments with the larger length is copied to the returned result
+\code{...} arguments with the largest length is copied to the returned result
 (note that this \code{name} attribute can be \code{NULL}, resulting in a
 \code{NULL} \code{name} attribute (i.e. no \code{name}!) for the result).}
 

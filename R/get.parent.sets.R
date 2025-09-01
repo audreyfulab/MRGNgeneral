@@ -2,6 +2,7 @@
 ### From an adjacency matrix
 ### Refer to MRGN for notation (n_t,n_v,n_wz,n_u); n_wz = n_q (the true n_q)
 ### offset is the number of variables in Adj before true confounding variables
+# Get confounder set
 get.true.conf.set <- function(Adj, n_v = 0, n_t, n_wz = 0, n_u,
                               Upool = TRUE,
                               offset = n_t + n_v + if (Upool) n_wz else 0) {

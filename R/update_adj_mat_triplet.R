@@ -1,5 +1,4 @@
 # Internal child function of "update.adjacency.matrix
-#' @noRd
 update.adjacency.matrix_triplet <- function (adjacency,
                                              n_v, n_t, n_q, # Currently not used
                                              triplet.set,

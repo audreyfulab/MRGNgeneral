@@ -20,12 +20,13 @@ get.conf.sets(
   V.FDRcontrol = FDRcontrol,
   T.FDRcontrol = FDRcontrol,
   C.FDRcontrol = FDRcontrol,
-  WZ.FDRcontrol = FDRcontrol,
+  Q.FDRcontrol = FDRcontrol,
   adjust_by = c("individual", "all", "none"),
   V.adjust_by = adjust_by,
   T.adjust_by = adjust_by,
   C.adjust_by = adjust_by,
-  WZ.adjust_by = adjust_by,
+  Q.adjust_by = adjust_by,
+  T.filter = FALSE,
   fdr = 0.05,
   lambda = 0.05,
   pi0.method = c("smoother", "boostrap"),
@@ -67,19 +68,23 @@ Pearson's correlation given \code{V}-nodes, and \code{"marginal"} for correlatio
 coefficient. The measure used for \code{V}-nodes selection is always the
 marginal correlation coefficient.}
 
-\item{FDRcontrol, T.FDRcontrol, C.FDRcontrol, V.FDRcontrol}{characters indicating
+\item{FDRcontrol, V.FDRcontrol, T.FDRcontrol, C.FDRcontrol}{characters indicating
 the FDR control methods to be used for different selections.
 One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 \code{"bonferroni"} (see \link[stats]{p.adjust}).
 If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol} is missing,
 \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.}
 
-\item{adjust_by, T.adjust_by, C.adjust_by, V.adjust_by}{character indicating the
+\item{adjust_by, V.adjust_by, T.adjust_by, C.adjust_by, Q.FDRcontrol}{character indicating the
 adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
 \code{"individual"} (adjust p-values for each gene separately),
 and \code{"all"} (adjust all p-values for all genes at once).
 If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by} is missing,
 \code{adjust_by} is used, otherwise \code{adjust_by} is ignored.}
+
+\item{T.filter}{logical, should \code{T}-node selection attempt to filter out
+potential child \code{T}-nodes from the selected pool for each \code{T}-node?
+Defaults to \code{FALSE}.}
 
 \item{fdr, lambda, pi0.method, alpha}{See \link[MRGN]{get.conf.matrix}
 (\code{selection_fdr} is used there for \code{fdr}).}

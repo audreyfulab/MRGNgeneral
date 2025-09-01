@@ -35,51 +35,24 @@ candidate confounding variables (\code{C}-nodes).
 This function implements \code{Step 2} of the MRGN general algorithm.
 }
 \examples{
-#Raw data (networkA11) & confounding variable selection result (confsetsA11)
+#Raw data (networka11) & confounding variable selection result (confsetsa11)
 library(MRGNgeneral)
-data(networkA11)
-data(confsetsA11)
+data(networka11)
+data(confsetsa11)
 
-# Generate the input graph
-Adjacency0 <- get.initial.skeleton (data = networkA11$data,
-                                    n_v = networkA11$dims$n_v,
-                                    n_t = networkA11$dims$n_t,
+#Graph skeleton
+Adjacency0 <- get.initial.skeleton (data = networka11$data,
+                                    n_v = networka11$dims$n_v,
+                                    n_t = networka11$dims$n_t,
                                     threshold_v = 0.2,
                                     threshold_m = 0.05,
-                                    conf.sets = confsetsA11)
+                                    conf.sets = confsetsa11)
 
-Adj0.mtx <- Adjacency0
-class (Adj0.mtx) <- "matrix"
-dim (Adj0.mtx)
-# 333 333
-# Nodes here are V and T nodes, plus the inferred Q nodes.
-# They are a subset of all the nodes.
 
-# The true adjacency matrix does not include the independent variables
-dim (networkA11$adjacency)
-# 500 500
-
-# In order to extract the corresponding nodes from the true adjacency matrix,
-# need to create the adj mtx for all nodes,
-# and then extract the nodes in query mtx
-n_all <- sum (unlist(networkA11$dims))
-true_adj_all <- matrix(0, nrow = n_all, ncol = n_all)
-n_vtwzu <- nrow(networkA11$adjacency)
-true_adj_all[1:n_vtwzu, 1:n_vtwzu] <- networkA11$adjacency
-dim (true_adj_all)
-# 600 600
-
-# The nodes in Adjacency0
-n_v <- networkA11$dims$n_v
-n_t <- networkA11$dims$n_t
-index_all <- c(1:(n_v+n_t), confsetsA11$WZindices)
-# Extract these nodes from the entire true adjacency matrix
-true_adj <- true_adj_all[index_all, index_all]
-
-# Recall and precision of the skeleton
-Recall_Precision <- RecallPrecision(as (true_adj, 'graphNEL'),
-                                    as (Adj0.mtx, 'graphNEL'),
-                                    GV = networkA11$dims$n_v,
+#Recall and precision of the skeleton
+Recall_Precision <- RecallPrecision(as (networka11$adjacency, 'graphNEL'),
+                                    as (Adjacency0, 'graphNEL'),
+                                    GV = networka11$dims$n_v,
                                     includeGV = TRUE,
                                     edge.presence = 1.0,
                                     edge.direction = 0.5)

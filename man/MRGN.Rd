@@ -54,7 +54,7 @@ confounders for each phenotype, as returned by \link{get.conf.sets}.}
 Passed to \link{update.adjacency.matrix}.}
 
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
-\link[parallel]{parLapply} (when supplied).}
+\link{parLapply}{parallel} (when supplied).}
 }
 \description{
 Infer a causal network/graph with directed and undirected edges from observational data.
@@ -74,22 +74,22 @@ Adjacency0 <- get.initial.skeleton (data = networkA11$data,
                                     conf.sets = confsetsA11)
 
 
-# Run MRGN: running time ~ 5 minutes!
+# Run MRGN: running time ~ 12 minutes on MAC OS Ventura 13.6.3 (16 GB memory, 8 cores).
 \dontrun{
-mrgninferA11 <- MRGN(data = networkA11$data,
-                     n_v = networkA11$dims$n_v,
-                     n_t = networkA11$dims$n_t,
-                     Qlabels = confsetsA11$WZindices,
-                     n_q = length(confsetsA11$WZindices),
-                     n_u = networkA11$dims$n_w + networkA11$dims$n_z +
-                       networkA11$dims$n_u + networkA11$dims$n_k +
-                       networkA11$dims$n_i - length(confsetsA11$WZindices),
-                     adjacency = Adjacency0,
-                     confounders = confsetsA11$confounders,
-                     alpha = 0.01,
-                     FDRcontrol = 'bonferroni',
-                     fdr = 0.05,
-                     verbose = TRUE)
+MRGNfit <- MRGN(data = networkA11$data,
+                n_v = networkA11$dims$n_v,
+                n_t = networkA11$dims$n_t,
+                Qlabels = confsetsA11$WZindices,
+                n_q = length(confsetsA11$WZindices),
+                n_u = networkA11$dims$n_w + networkA11$dims$n_z +
+                  networkA11$dims$n_u + networkA11$dims$n_k +
+                  networkA11$dims$n_i - length(confsetsA11$WZindices),
+                adjacency = Adjacency0,
+                confounders = confsetsA11$confounders,
+                alpha = 0.01,
+                FDRcontrol = 'bonferroni',
+                fdr = 0.05,
+                verbose = TRUE)
 }
 }
 \seealso{

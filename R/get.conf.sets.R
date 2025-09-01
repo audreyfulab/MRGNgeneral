@@ -43,19 +43,23 @@
 #' coefficient. The measure used for \code{V}-nodes selection is always the
 #' marginal correlation coefficient.
 #'
-#' @param FDRcontrol,T.FDRcontrol,C.FDRcontrol,V.FDRcontrol characters indicating
+#' @param FDRcontrol,V.FDRcontrol,T.FDRcontrol,C.FDRcontrol characters indicating
 #' the FDR control methods to be used for different selections.
 #' One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 #' \code{"bonferroni"} (see \link[stats]{p.adjust}).
 #' If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol} is missing,
 #' \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
 #'
-#' @param adjust_by,T.adjust_by,C.adjust_by,V.adjust_by character indicating the
+#' @param adjust_by,V.adjust_by,T.adjust_by,C.adjust_by,Q.FDRcontrol character indicating the
 #' adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
 #' \code{"individual"} (adjust p-values for each gene separately),
 #' and \code{"all"} (adjust all p-values for all genes at once).
 #' If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by} is missing,
 #' \code{adjust_by} is used, otherwise \code{adjust_by} is ignored.
+#'
+#' @param T.filter logical, should \code{T}-node selection attempt to filter out
+#' potential child \code{T}-nodes from the selected pool for each \code{T}-node?
+#' Defaults to \code{FALSE}.
 #'
 #' @param fdr,lambda,pi0.method,alpha See \link[MRGN]{get.conf.matrix}
 #' (\code{selection_fdr} is used there for \code{fdr}).
@@ -147,7 +151,7 @@
 #'
 #' @export get.conf.sets
 #'
-#' @importFrom MRGN get.conf.matrix
+# @importFrom MRGN get.conf.matrix
 #' @importFrom MRGN p.from.parcor
 #' @importFrom MRGN p.from.cor
 #' @importFrom MRGN adjust.q
@@ -227,12 +231,13 @@ get.conf.sets <- function (data,
                            V.FDRcontrol = FDRcontrol,
                            T.FDRcontrol = FDRcontrol,
                            C.FDRcontrol = FDRcontrol,
-                           WZ.FDRcontrol = FDRcontrol,
+                           Q.FDRcontrol = FDRcontrol,
                            adjust_by = c("individual", "all", "none"),
                            V.adjust_by = adjust_by,
                            T.adjust_by = adjust_by,
                            C.adjust_by = adjust_by,
-                           WZ.adjust_by = adjust_by,
+                           Q.adjust_by = adjust_by,
+                           T.filter = FALSE,
                            fdr = 0.05, # Only used if FDRcontrol = 'qvalue'
                            lambda = 0.05,
                            pi0.method = c("smoother", "boostrap"),
@@ -261,7 +266,7 @@ get.conf.sets <- function (data,
     }
     else {
       if (verbose) {
-        cat("        * selecting 'V-nodes' using marginal correlations ... \n")
+        cat("\n        * selecting 'V-nodes' using marginal correlations ... \n")
       }
 
       ### Call 'get.conf.matrix' on 'V.pool'
@@ -276,7 +281,9 @@ get.conf.sets <- function (data,
                          apply.qval = V.apply.qval,
                          lambda = lambda,
                          pi0.method = pi0.method,
-                         alpha = alpha)
+                         alpha = alpha,
+                         verbose = max(0, verbose - 1),
+                         cl = cl, chunk.size = chunk.size)
       })$value
 
       ## Check the result: error or not?
@@ -306,7 +313,9 @@ get.conf.sets <- function (data,
                              apply.qval = V.apply.qval,
                              lambda = lambda,
                              pi0.method = "bootstrap",
-                             alpha = alpha)
+                             alpha = alpha,
+                             verbose = max(0, verbose - 1),
+                             cl = cl, chunk.size = chunk.size)
           })$value
 
           ## Return an empty n_t list if 'bootstrap' method also failed
@@ -338,7 +347,7 @@ get.conf.sets <- function (data,
     }
     else {
     if (verbose) {
-      cat(paste0("        * selecting 'T-nodes' using ",
+      cat(paste0("\n        * selecting 'T-nodes' using ",
                  if (n_v > 0 & identical(T.measure, "partial")) 'partial' else 'marginal',
                  " correlations ... \n"))
     }
@@ -354,6 +363,8 @@ get.conf.sets <- function (data,
                        n_v = n_v,
                        FDRcontrol = T.FDRcontrol,
                        adjust_by = T.adjust_by,
+                       T.filter = T.filter,
+                       Vconfounders = Vconfounders,
                        fdr = fdr,
                        lambda = lambda,
                        pi0.method = pi0.method,
@@ -369,7 +380,7 @@ get.conf.sets <- function (data,
         if (identical(Traw$message, "wrong sign in 'by' argument")) {
           if (verbose) {
             print(Traw$message)
-            cat("\n 'get.conf.matrix' failled ...  \n")
+            cat("\n 'get.conf.Tset' failled ...  \n")
           }
         }
 
@@ -388,6 +399,8 @@ get.conf.sets <- function (data,
                            n_v = n_v,
                            FDRcontrol = T.FDRcontrol,
                            adjust_by = T.adjust_by,
+                           T.filter = T.filter,
+                           Vconfounders = Vconfounders,
                            fdr = fdr,
                            lambda = lambda,
                            pi0.method = "bootstrap",
@@ -414,7 +427,7 @@ get.conf.sets <- function (data,
     }
     else {
       if (verbose) {
-        cat("        * selecting 'T-nodes' using marginal correlations ... \n")
+        cat("\n        * selecting 'T-nodes' using marginal correlations ... \n")
       }
 
       ### Call 'get.conf.matrix' on 'T.pool'
@@ -429,7 +442,9 @@ get.conf.sets <- function (data,
                          apply.qval = T.apply.qval,
                          lambda = lambda,
                          pi0.method = pi0.method,
-                         alpha = alpha)
+                         alpha = alpha,
+                         verbose = max(0, verbose - 1),
+                         cl = cl, chunk.size = chunk.size)
       })$value
 
       ## Check the result: error or not?
@@ -459,7 +474,9 @@ get.conf.sets <- function (data,
                              apply.qval = T.apply.qval,
                              lambda = lambda,
                              pi0.method = "bootstrap",
-                             alpha = alpha)$sig.asso.covs
+                             alpha = alpha,
+                             verbose = max(0, verbose - 1),
+                             cl = cl, chunk.size = chunk.size) # $sig.asso.covs
           })$value
 
           ## Return an empty n_t list if 'bootstrap' method also failed
@@ -512,7 +529,7 @@ get.conf.sets <- function (data,
     }
     else {
       if (verbose) {
-        cat("        * selecting 'U,W,Z-nodes' using partial correlations ... \n")
+        cat(paste0("\n        * selecting 'U,W,Z-nodes' using ", C.measure[1], " correlations ... \n"))
       }
 
       ### Call 'get.conf.matrix' on 'C.pool'
@@ -527,7 +544,9 @@ get.conf.sets <- function (data,
                          apply.qval = C.apply.qval,
                          lambda = lambda,
                          pi0.method = pi0.method,
-                         alpha = alpha)
+                         alpha = alpha,
+                         verbose = max(0, verbose - 1),
+                         cl = cl, chunk.size = chunk.size)
       })$value
 
       ## Check the result: error or not?
@@ -557,7 +576,9 @@ get.conf.sets <- function (data,
                              apply.qval = C.apply.qval,
                              lambda = lambda,
                              pi0.method = "bootstrap",
-                             alpha = alpha)
+                             alpha = alpha,
+                             verbose = max(0, verbose - 1),
+                             cl = cl, chunk.size = chunk.size)
           })$value
 
           ## Return an empty n_t list if 'bootstrap' method also failed
@@ -621,11 +642,13 @@ get.conf.sets <- function (data,
                          conditional.vars = NULL,
                          blocksize = blocksize,
                          selection_fdr = fdr,
-                         adjust_by = WZ.adjust_by,
-                         apply.qval = WZ.apply.qval,
+                         adjust_by = Q.adjust_by,
+                         apply.qval = Q.apply.qval,
                          lambda = lambda,
                          pi0.method = pi0.method,
-                         alpha = alpha)
+                         alpha = alpha,
+                         verbose = max(0, verbose - 1),
+                         cl = cl, chunk.size = chunk.size)
       })$value
 
       ## Check the result: error or not?
@@ -651,11 +674,13 @@ get.conf.sets <- function (data,
                              conditional.vars = NULL,
                              blocksize = blocksize,
                              selection_fdr = fdr,
-                             adjust_by = WZ.adjust_by,
-                             apply.qval = WZ.apply.qval,
+                             adjust_by = Q.adjust_by,
+                             apply.qval = Q.apply.qval,
                              lambda = lambda,
                              pi0.method = "bootstrap",
-                             alpha = alpha)
+                             alpha = alpha,
+                             verbose = max(0, verbose - 1),
+                             cl = cl, chunk.size = chunk.size)
           })$value
 
           ## Return an empty n_t list if 'bootstrap' method also failed
@@ -718,7 +743,8 @@ get.conf.sets <- function (data,
   names(Vconfounders) <- nm.genes
   names(Tconfounders) <- nm.genes
   names(Uconfounders) <- nm.genes
-  names(UWZconfounders) <- nm.genes
+  if (!is.null(UWZconfounders))
+    names(UWZconfounders) <- nm.genes
   names(WZconfounders) <- nm.variants
 
   ### Bind all selected nodes in one list
@@ -782,11 +808,15 @@ check.get.conf.sets.args <- function () {
     stopifnot(V.FDRcontrol %in% c("none", "qvalue", p.adjust.methods))
     V.apply.qval <- (V.FDRcontrol == "qvalue") & (V.adjust_by != "none")
 
-    WZ.adjust_by <- WZ.adjust_by[1]
-    stopifnot(WZ.adjust_by %in% c("all", "individual", "none"))
-    WZ.FDRcontrol <- WZ.FDRcontrol[1]
-    stopifnot(WZ.FDRcontrol %in% c("none", "qvalue", p.adjust.methods))
-    WZ.apply.qval <- (WZ.FDRcontrol == "qvalue") & (WZ.adjust_by != "none")
+    Q.adjust_by <- Q.adjust_by[1]
+    stopifnot(Q.adjust_by %in% c("all", "individual", "none"))
+    Q.FDRcontrol <- Q.FDRcontrol[1]
+    stopifnot(Q.FDRcontrol %in% c("none", "qvalue", p.adjust.methods))
+    Q.apply.qval <- (Q.FDRcontrol == "qvalue") & (Q.adjust_by != "none")
+
+    T.filter <- as.logical(T.filter)
+    T.filter <- T.filter[1]
+    stopifnot(is.logical(T.filter))
 
     ### If no data at all
     if (is.null(data)) {
@@ -932,6 +962,8 @@ get.conf.Tset <- function (data, # data matrix
                            n_v = length(V.pool),    # Number of Variants
                            FDRcontrol = "qvalue",
                            adjust_by = 'individual',
+                           T.filter = FALSE,
+                           Vconfounders = NULL,
                            fdr = 0.05,
                            lambda = 0.05,
                            pi0.method = "smoother",
@@ -947,31 +979,59 @@ get.conf.Tset <- function (data, # data matrix
   data[, c(T.pool, V.pool)] <- scale(data[, c(T.pool, V.pool), drop = FALSE],
                                      center = TRUE, scale = FALSE)
 
-  ## Create a grid of (x,y) pairs (i.e. pairs of indices of columns in data)
-  ## Here, we only consider indices (i, j) such that j < i
-  xygrid <- t(combn(T.pool, m = 2))
+  ## Number of V-nodes selected for each T-node
+  N_Vi <- if (is.null(Vconfounders)) 0 else sapply(Vconfounders, length)
 
-  ## Get the partial correlations (lower triangle elements)
-  pcorrs <- matteApply (X = xygrid,
-                        MARGIN = 1,
-                        FUN = pcorTTgivenV,
-                        V.pool = V.pool,
-                        data = data,
-                        chunk.size = chunk.size, cl = cl)
+  if (T.filter & any(N_Vi)) { ## the matrix of correlations may be asymmetric in this case
+    ## Create a grid of (x,y) pairs (i.e. pairs of indices of columns in data)
+    xygrid <- expand.grid(x = T.pool, y = T.pool)
 
-  ## Perform Pearson tests and extract n_t values
-  pvalues <- p.from.parcor(pcorrs, n = NROW(data), S = n_v)$pvalue
+    ## Get the partial correlations
+    r.mat <- numeric(length = NROW(xygrid)) # initialize to zeros
+    nonzero <- xygrid[,1] != xygrid[,2]      # Keep zeros for corr(Tj, Tj)
+    r.mat[nonzero] <- matteApply (X = xygrid[nonzero, , drop = FALSE],
+                          MARGIN = 1,
+                          FUN = pcorTTgivenVj,
+                          V.pool = V.pool,
+                          Vset = Vconfounders,
+                          data = data, n_v = n_v,
+                          chunk.size = chunk.size, cl = cl)
 
-  ## Reorganize into matrices
-  r.mat <- p.mat <- diag(n_t)
-  r.mat[lower.tri(r.mat, diag = FALSE)] <- pcorrs # (lower triangle)
-  p.mat[lower.tri(p.mat, diag = FALSE)] <- pvalues # (lower triangle)
+    ## Perform Pearson tests and extract n_t values
+    pvalues <- numeric(length = NROW(xygrid)) + 1
+    pvalues[nonzero] <- p.from.parcor(r.mat[nonzero], n = NROW(data), S = N_Vi)$pvalue
 
-  ## Make the matrices symmetric
-  r.mat <- r.mat + t(r.mat) # (upper triangle)
-  diag(r.mat) <- 0  # Setting cor(T_j, T_j) to zero to avoid selecting T_j as a confounder for T_j
-  p.mat <- p.mat + t(p.mat)
-  diag(p.mat) <- 1  # Setting pvalue = 1 for cor(T_j, T_j) to avoid selecting T_j as a confounder for T_j
+    ## Reorganize into matrices
+    r.mat <- matrix(r.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
+    p.mat <- matrix(pvalues, nrow = n_t, ncol = n_t, byrow = FALSE)
+  }
+  else { ## Here we have a symmetric matrix of correlations
+    ## Create a grid of (x,y) pairs (i.e. pairs of indices of columns in data)
+    ## Here, we only consider indices (i, j) such that j < i
+    xygrid <- t(combn(T.pool, m = 2))
+
+    ## Get the partial correlations (lower triangle elements)
+    pcorrs <- matteApply (X = xygrid,
+                          MARGIN = 1,
+                          FUN = pcorTTgivenV,
+                          V.pool = V.pool,
+                          data = data,
+                          chunk.size = chunk.size, cl = cl)
+
+    ## Perform Pearson tests and extract n_t values
+    pvalues <- p.from.parcor(pcorrs, n = NROW(data), S = n_v)$pvalue
+
+    ## Reorganize into matrices
+    r.mat <- p.mat <- diag(n_t)
+    r.mat[lower.tri(r.mat, diag = FALSE)] <- pcorrs # (lower triangle)
+    p.mat[lower.tri(p.mat, diag = FALSE)] <- pvalues # (lower triangle)
+
+    ## Make the matrices symmetric
+    r.mat <- r.mat + t(r.mat) # (upper triangle)
+    diag(r.mat) <- 0  # Setting cor(T_j, T_j) to zero to avoid selecting T_j as a confounder for T_j
+    p.mat <- p.mat + t(p.mat)
+    diag(p.mat) <- 1  # Setting pvalue = 1 for cor(T_j, T_j) to avoid selecting T_j as a confounder for T_j
+  }
 
   ## Perform q value correction, if required (code adapted from Jarred's 'get.conf.matrix' function)
   switch(FDRcontrol,
@@ -1000,21 +1060,42 @@ get.conf.Tset <- function (data, # data matrix
                     q.mat <- sapply(qsig.mat, function(x) x$qvalue)
                   },
                   all = {
-                    qsig.mat <- adjust.q (pvalues,
-                                         fdr = fdr,
-                                         lambda = lambda,
-                                         pi0.meth = pi0.method)
+                    if (T.filter & any(N_Vi)) {
+                      qsig.mat <- adjust.q (pvalues[nonzero],
+                                            fdr = fdr,
+                                            lambda = lambda,
+                                            pi0.meth = pi0.method)
 
-                    #restructure output into significance matrix of snps X covariates
-                    sig.mat <- diag(n_t)
-                    sig.mat[lower.tri(sig.mat, diag = FALSE)] <- qsig.mat$significant # (lower triangle)
-                    sig.mat <- (sig.mat + t(sig.mat)) > 0
-                    diag(sig.mat) <- FALSE
-                    #restructure output into qvalue matrix of snps X covariates
-                    q.mat <- diag(n_t)
-                    q.mat[lower.tri(q.mat, diag = FALSE)] <- qsig.mat$qvalue # (lower triangle)
-                    q.mat <- q.mat + t(q.mat)
-                    diag(q.mat) <- 1
+                      sig.mat <- nonzero
+                      sig.mat[nonzero] <- qsig.mat$significant
+                      q.mat <- numeric(NROW(xygrid)) + 1
+                      q.mat[nonzero] <- qsig.mat$qvalue
+
+                      qsig.mat$significant
+                      qsig.mat$qvalue[nonzero] <- qsig.mat0$qvalue; rm(qsig.mat0)
+
+                      #restructure results into significance matrix of snps X covariates
+                      sig.mat <- matrix(sig.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
+                      q.mat <- matrix(q.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
+
+                    }
+                    else {
+                      qsig.mat <- adjust.q (pvalues,
+                                            fdr = fdr,
+                                            lambda = lambda,
+                                            pi0.meth = pi0.method)
+
+                      #restructure results into significance matrix of snps X covariates
+                      sig.mat <- diag(n_t)
+                      sig.mat[lower.tri(sig.mat, diag = FALSE)] <- qsig.mat$significant # (lower triangle)
+                      sig.mat <- (sig.mat + t(sig.mat)) > 0
+                      diag(sig.mat) <- FALSE
+                      #restructure results into qvalue matrix of snps X covariates
+                      q.mat <- diag(n_t)
+                      q.mat[lower.tri(q.mat, diag = FALSE)] <- qsig.mat$qvalue # (lower triangle)
+                      q.mat <- q.mat + t(q.mat)
+                      diag(q.mat) <- 1
+                    }
                   },
                   none = {
                     qsig.mat <- q.mat <- matrix(NA, nrow = n_t, ncol = n_t)
@@ -1048,22 +1129,38 @@ get.conf.Tset <- function (data, # data matrix
 
                   },
                   all = {
-                    #adjust by all pvalues
-                    #matrix of adjusted pvalues
-                    p.adj.mat <- stats::p.adjust(pvalues,
-                                                 method = FDRcontrol)
+                    if (T.filter & any(N_Vi)) {
+                      # Adjust pvalues
+                      p.adj.mat <- numeric(NROW(xygrid)) + 1
+                      p.adj.mat[nonzero] <- stats::p.adjust(pvalues[nonzero],
+                                                            method = FDRcontrol)
 
-                    #significance matrix (binary matrix)
-                    sig.mat <- diag(n_t)
-                    sig.mat[lower.tri(sig.mat, diag = FALSE)] <- p.adj.mat # (lower triangle)
-                    sig.mat <- sig.mat + t(sig.mat)
-                    diag(sig.mat) <- 1
-                    p.adj.mat <- sig.mat
-                    sig.mat <- p.adj.mat <= alpha
+                      #restructure results into significance matrix of snps X covariates
+                      p.adj.mat <- matrix(p.adj.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
 
-                    #empty matrix
-                    q.mat <- matrix(NA, nrow = nrow(p.mat), ncol = ncol(p.mat))
+                      #significance matrix (binary matrix)
+                      sig.mat <- p.adj.mat <= alpha
 
+                      #empty matrix
+                      q.mat <- matrix(NA, nrow = nrow(p.mat), ncol = ncol(p.mat))
+                    }
+                    else {
+                      #adjust by all pvalues
+                      #matrix of adjusted pvalues
+                      p.adj.mat <- stats::p.adjust(pvalues,
+                                                   method = FDRcontrol)
+
+                      #significance matrix (binary matrix)
+                      sig.mat <- diag(n_t)
+                      sig.mat[lower.tri(sig.mat, diag = FALSE)] <- p.adj.mat # (lower triangle)
+                      sig.mat <- sig.mat + t(sig.mat)
+                      diag(sig.mat) <- 1
+                      p.adj.mat <- sig.mat
+                      sig.mat <- p.adj.mat <= alpha
+
+                      #empty matrix
+                      q.mat <- matrix(NA, nrow = nrow(p.mat), ncol = ncol(p.mat))
+                    }
                   },
                   none = {
                     p.adj.mat <- q.mat <- matrix(NA, nrow = n_t, ncol = n_t)
@@ -1080,10 +1177,6 @@ get.conf.Tset <- function (data, # data matrix
     cat("            selecting significant covariates... \n")
   }
   #extract significant covariates:
-  #sig.asso.covs <- apply(sig.mat,
-  #                       MARGIN = 2,
-  #                       FUN = function(x){which(x)}, simplify = FALSE)
-
   sig.asso.covs <- lapply(1:NCOL(sig.mat), FUN = function(j) {
     x <- sig.mat[,j]
     which(x)
@@ -1110,4 +1203,12 @@ get.conf.Tset <- function (data, # data matrix
 # Get T-T partial correlation given all V-nodes (calls ppcor::pcor)
 pcorTTgivenV <- function (jk, V.pool, data) {
   ppcor::pcor(cbind(data[, c(jk, V.pool) ]))$estimate[1,2]
+}
+
+# Get T-T partial correlation given selected V-nodes
+pcorTTgivenVj <- function (jk, V.pool, Vset, data, n_v) {
+
+  Vjk <- setdiff(V.pool, Vset[[jk[1] - n_v]]) # Remove V-nodes selected for Tk from the pool of V-nodes
+
+  ppcor::pcor(cbind(data[, c(jk, Vjk) ]))$estimate[1,2]
 }
