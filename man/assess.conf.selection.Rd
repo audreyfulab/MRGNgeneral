@@ -53,6 +53,10 @@ raw precisions the averages are computed from are in the returned element \code{
 nodes (e.g. \code{V}, \code{T}, \code{Q}, \code{U}) for each focal \code{T}-node,
 \code{precision}: \code{n_t}-vector giving the precisions of a particular
 group of nodes for each focal \code{T}-node).}
+\item{\code{True.confs}}{ list of four elements \code{Vset}, \code{Tset},
+\code{Qset} and \code{Vset}, each being an \code{n_t}-list giving the true
+confounding variables (respectively, \code{V}-nodes, \code{T}-nodes,
+\code{Q}-node, and \code{U}-nodes) for each \code{T}-node.}
 }
 }
 \description{

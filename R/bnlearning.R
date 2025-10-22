@@ -8,7 +8,8 @@ bnlearning <- function (data, # data.frame/matrix, typically the \code{data} ele
                         restart,    # an integer, the number of random restarts.
                         adjacency = NULL,  # adjacency matrix of the true network from which \code{data} was generated
                         indexT = 1:NCOL(data),     # integer vector, indices of the columns of \code{data} corresponding to genes/phenotypes of interest and on which performance measures are computed.
-                        verbose, nb.cl, #
+                        verbose,
+                        nb.cl, # Only used by pc.stable
                         savetopath,     # logical, save the output of each method, and the final output?
                         path, setpath) {
 

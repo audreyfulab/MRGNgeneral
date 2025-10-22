@@ -1,7 +1,7 @@
 #' Plot an adjacency matrix
 #'
 #' This function takes an adjacency matrix representing an acyclic graph
-#' and calls \link[igraph]{plot.igraph} to plot the graph.
+#' and calls \link{igraph::plot.igraph} to plot the graph.
 #'
 #' @param adjacency A square matrix of class \code{adjacency}. This is passed to
 #' \link{is.adjacency.matrix} for checking.
@@ -23,17 +23,17 @@
 #'
 #' @usage
 #' # S3 method for class 'adjacency.matrix'
-#' \method{plot}{adjacency.matrix}(adjacency, n_vt, mode, layout, vertex.color, edge.arrow.size, ...)
+#' plot(adjacency, ...)
 #'
 #' @details
-#' The function's output has a random layout.
+#' The function's output is random.
 #' Set a random generator seed using \link{set.seed} for reproducibility.
 #'
-#' @method plot adjacency.matrix
 #'
 #' @return Returns \code{NULL}, invisibly.
 #'
-#' @export 
+#' @exportS3Method plot adjacency.matrix
+#' @export plot.adjacency.matrix
 # @references
 #     \insertAllCited{}
 #' @importFrom igraph graph_from_adjacency_matrix
@@ -43,13 +43,13 @@
 # layout_as_bipartite(), layout_as_star(), layout_as_tree(), layout_in_circle(), layout_nicely(), layout_on_grid(), layout_on_sphere(), layout_randomly(), layout_with_dh(), layout_with_fr(), layout_with_gem(), layout_with_graphopt(), layout_with_kk(), layout_with_lgl(), layout_with_mds(), layout_with_sugiyama()
 #'
 #' @examples
-#' ### Load the network 'networkA11'
+#' ### Load the network 'networka11'
 #' library(MRGNgeneral)
-#' data(networkA11)
+#' data(networka11)
 #'
 #' ### Adjacency matrix of a subset of the network
 #' adjacency <- structure(
-#'   networkA11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
+#'   networka11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
 #'                        c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28')],
 #'   class = 'adjacency.matrix')
 #' adjacency

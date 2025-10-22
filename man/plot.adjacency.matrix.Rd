@@ -5,7 +5,7 @@
 \title{Plot an adjacency matrix}
 \usage{
 # S3 method for class 'adjacency.matrix'
-\method{plot}{adjacency.matrix}(adjacency, n_vt, mode, layout, vertex.color, edge.arrow.size, ...)
+plot(adjacency, ...)
 }
 \arguments{
 \item{adjacency}{A square matrix of class \code{adjacency}. This is passed to
@@ -31,20 +31,20 @@ Returns \code{NULL}, invisibly.
 }
 \description{
 This function takes an adjacency matrix representing an acyclic graph
-and calls \link[igraph]{plot.igraph} to plot the graph.
+and calls \link{igraph::plot.igraph} to plot the graph.
 }
 \details{
-The function's output has a random layout.
+The function's output is random.
 Set a random generator seed using \link{set.seed} for reproducibility.
 }
 \examples{
-### Load the network 'networkA11'
+### Load the network 'networka11'
 library(MRGNgeneral)
-data(networkA11)
+data(networka11)
 
 ### Adjacency matrix of a subset of the network
 adjacency <- structure(
-  networkA11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
+  networka11$adjacency[c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28'),
                        c('V39', 'T39', 'T43', 'T52', 'W11', 'Z2', 'U28')],
   class = 'adjacency.matrix')
 adjacency

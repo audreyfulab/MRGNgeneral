@@ -34,6 +34,8 @@
 #'  to an edge with the correct direction and 0.5 to an edge with the wrong
 #'  direction or no direction \insertCite{badsha2019learning,badsha2021mrpc}{MRGNgeneral}.
 #'
+#'  Column names must match between the two graphs (the order may differ).
+#'
 #' @return A \code{list} object that contains the following:
 #' \itemize{
 #' \item \code{Matrix}: Results store for TP and FP

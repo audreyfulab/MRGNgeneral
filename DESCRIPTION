@@ -14,10 +14,10 @@ RoxygenNote: 7.3.2
 Date: 2023-11-20
 LazyData: true
 RdMacros: Rdpack
-Imports: graph, igraph, qvalue, pcalg,
-        ff, propagate, methods, Rdpack, parallel, ppcor, MRGN
+Imports: graph, igraph, qvalue, ff, propagate, methods, Rdpack,
+        parallel, ppcor, MRGN
 NeedsCompilation: no
-Packaged: 2023-06-06 00:13:04 UTC; Bruin
+Packaged: 2025-08-18 14:09:03 UTC; ctovissode
 Author: Chenangnon Tovissode [aut, cre] (<https://orcid.org/0000-0002-3685-3043>),
   Audrey Fu [aut]
-Maintainer: Audrey Fu <audreyqyfu@gmail.com>
+Maintainer: Chenangnon Tovissode <ctovissode@uidaho.edu>

@@ -44,3 +44,6 @@ strings "everything", "all.obs", "complete.obs", "na.or.complete", or
 (which can here be one of "pearson", or "spearman"). Note that these
 arguments are not checked before they are passed to \link{cov}.
 }
+\seealso{
+\link{pairwise.cor.test}
+}

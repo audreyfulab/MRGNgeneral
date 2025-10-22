@@ -1,32 +1,30 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# MRGNgeneral
+# MRGN
 
 <img src="C:/Users/Bruin/Desktop/Research Assistantship/MRGN_logo/MRGN-logos.png" width="100%" />
 <!-- badges: start --> <!-- badges: end -->
 
-MRGNgeneral builds on and extends the capability of MRGN (for a trio of a genotype node and two phenotype nodes) and infers a causal network from genomic data.  The network includes genotype nodes (as instrumental variables for Mendelian randomization), phenotype nodes, and different types of confounding variables.  Directed edges are likely to have a causal interpretation under the assumption of Mendelian randomization.  There may be undirected edges when the data are not sufficiently informative.
-
-This package depends on the MRGN package: https://github.com/Jarred6068/MRGN, as well as a few other packages.  You need to install MRGN before installing MRGNgeneral.
+The goal of MRGN is to …
 
 ## Installation
 
-You can install the development version of MRGNgeneral from
+You can install the development version of MRGN from
 [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("audreyqyfu/MRGNgeneral")
+devtools::install_github("Jarred6068/MRGN")
 ```
 
 ## Example
 
-This is an example in the documentation for the main function MRGN():
+This is a basic example which shows you how to solve a common problem:
 
 ``` r
-library(MRGNgeneral)
-?MRGN
+library(MRGN)
+## basic example code
 ```
 
 <!-- What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so: -->

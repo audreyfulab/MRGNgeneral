@@ -47,6 +47,10 @@
 #' nodes (e.g. \code{V}, \code{T}, \code{Q}, \code{U}) for each focal \code{T}-node,
 #' \code{precision}: \code{n_t}-vector giving the precisions of a particular
 #' group of nodes for each focal \code{T}-node).}
+#' \item{\code{True.confs}}{ list of four elements \code{Vset}, \code{Tset},
+#' \code{Qset} and \code{Vset}, each being an \code{n_t}-list giving the true
+#' confounding variables (respectively, \code{V}-nodes, \code{T}-nodes,
+#' \code{Q}-node, and \code{U}-nodes) for each \code{T}-node.}
 #' }
 #'
 #' @examples
@@ -78,44 +82,49 @@ assess.conf.selection <- function (conf.sets,
   n_wz <- n_w + n_z
 
   #### True parent sets
+  True.confs <- get.true.confs (adjacency = adjacency,
+                                n_v = n_v, n_t = n_t,
+                                n_w = n_w, n_z = n_z,
+                                n_u = n_u)
+
   ## V-nodes
-  TrueVparentset <- get.true.variant.set(Adj = adjacency,
-                                         n_t = n_t,
-                                         n_v = n_v)
-  if (!length(TrueVparentset)) {
-    TrueVparentset <- vector(mode = "list", length = n_t)
-  }
-
+  #TrueVparentset <- get.true.variant.set(Adj = adjacency,
+  #                                       n_t = n_t,
+  #                                       n_v = n_v)
+  #if (!length(TrueVparentset)) {
+  #  TrueVparentset <- vector(mode = "list", length = n_t)
+  #}
+  #
   ## T-nodes
-  TrueTparentset <- get.true.parent.genes(Adj = adjacency,
-                                          n_t = n_t,
-                                          n_v = n_v)
-  if (!length(TrueTparentset)) {
-    TrueTparentset <- vector(mode = "list", length = n_t)
-  }
-
+  #TrueTparentset <- get.true.parent.genes(Adj = adjacency,
+  #                                        n_t = n_t,
+  #                                        n_v = n_v)
+  #if (!length(TrueTparentset)) {
+  #  TrueTparentset <- vector(mode = "list", length = n_t)
+  #}
+  #
   ## Q-nodes
-  TrueQset <- get.true.conf.set(Adj = adjacency,
-                                n_v = n_v,
-                                n_t = n_t,
-                                n_wz = n_wz,
-                                Upool = FALSE,
-                                offset = n_v + n_t)
-  if (!length(TrueQset)) {
-    TrueQset <- vector(mode = "list", length = n_t)
-  }
+  #TrueQset <- get.true.conf.set(Adj = adjacency,
+  #                              n_v = n_v,
+  #                              n_t = n_t,
+  #                              n_wz = n_wz,
+  #                              Upool = FALSE,
+  #                              offset = n_v + n_t)
+  #if (!length(TrueQset)) {
+  #  TrueQset <- vector(mode = "list", length = n_t)
+  #}
 
   ## U-nodes
-  Trueconfset <- get.true.conf.set(Adj = adjacency,
-                                   n_v = n_v,
-                                   n_t = n_t,
-                                   n_wz = n_wz,
-                                   n_u = n_u,
-                                   Upool = TRUE,
-                                   offset = n_v + n_t + n_wz)
-  if (!length(Trueconfset)) {
-    Trueconfset <- vector(mode = "list", length = n_t)
-  }
+  #Trueconfset <- get.true.conf.set(Adj = adjacency,
+  #                                 n_v = n_v,
+  #                                 n_t = n_t,
+  #                                 n_wz = n_wz,
+  #                                 n_u = n_u,
+  #                                 Upool = TRUE,
+  #                                 offset = n_v + n_t + n_wz)
+  #if (!length(Trueconfset)) {
+  #  Trueconfset <- vector(mode = "list", length = n_t)
+  #}
 
   ## Pools of selected W,Z-nodes, and selected U-nodes
   Qindices <- conf.sets$WZindices
@@ -134,23 +143,23 @@ assess.conf.selection <- function (conf.sets,
 
   ### Compute recall and precision for each set of nodes
   ## V-nodes
-  Vrecalls = RecallUselection (Uset = conf.sets$Vconfounders, RefSet = TrueVparentset)
-  Vprecisions = PrecisionUselection (Uset = conf.sets$Vconfounders, RefSet = TrueVparentset)
+  Vrecalls = RecallUselection (Uset = conf.sets$Vconfounders, RefSet = True.confs$Vset)
+  Vprecisions = PrecisionUselection (Uset = conf.sets$Vconfounders, RefSet = True.confs$Vset)
 
   ## T-nodes
-  Trecalls = RecallUselection (Uset = conf.sets$Tconfounders, RefSet = TrueTparentset)
-  Tprecisions = PrecisionUselection (Uset = conf.sets$Tconfounders, RefSet = TrueTparentset)
+  Trecalls = RecallUselection (Uset = conf.sets$Tconfounders, RefSet = True.confs$Tset)
+  Tprecisions = PrecisionUselection (Uset = conf.sets$Tconfounders, RefSet = True.confs$Tset)
 
   ## Q-nodes
   conf.sets$Qconfounders <- lapply(conf.sets$UWZconfounders,
                                    FUN = function(x) setdiff(x, Uindices))
 
-  Qrecalls = RecallUselection (Uset = conf.sets$Qconfounders, RefSet = TrueQset)
-  Qprecisions = PrecisionUselection (Uset = conf.sets$Qconfounders, RefSet = TrueQset)
+  Qrecalls = RecallUselection (Uset = conf.sets$Qconfounders, RefSet = True.confs$Qset)
+  Qprecisions = PrecisionUselection (Uset = conf.sets$Qconfounders, RefSet = True.confs$Qset)
 
   ## U-nodes
-  Urecalls = RecallUselection (Uset = conf.sets$Uconfounders, RefSet = Trueconfset)
-  Uprecisions = PrecisionUselection (Uset = conf.sets$Uconfounders, RefSet = Trueconfset)
+  Urecalls = RecallUselection (Uset = conf.sets$Uconfounders, RefSet = True.confs$Uset)
+  Uprecisions = PrecisionUselection (Uset = conf.sets$Uconfounders, RefSet = True.confs$Uset)
 
   # Mean recall and precision
   ConfSelRecall = c(ConfSelRecall,
@@ -169,7 +178,8 @@ assess.conf.selection <- function (conf.sets,
                          Q = list(recall = Qrecalls,
                                   precision = Qprecisions),
                          U = list(recall = Urecalls,
-                                  precision = Uprecisions))))
+                                  precision = Uprecisions)),
+              True.confs = True.confs))
 
 }
 

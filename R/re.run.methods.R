@@ -1,6 +1,6 @@
-#' Function to test the stability of network inference method
-#' Re-order data columns and re-run network inference methods
-#' @export reorder.nre.run.methods
+
+# Function to test the stability of network inference method
+# Re-order data columns and re-run network inference methods
 reorder.nre.run.methods <- function (seed = NULL,
                                      simdata, conf.sets, Adjacency0,
                                      alpha, FDRcontrol, fdr, lambda,
@@ -23,7 +23,7 @@ reorder.nre.run.methods <- function (seed = NULL,
   n_q <- length(conf.sets$WZindices)
   n_vtq <- n_vt + n_q
 
-  ### Save random seed
+  ### Save random generator state to restitute it later
   saved.seed <- .Random.seed
   if(!is.null(seed)) {
     set.seed(seed)
@@ -56,7 +56,7 @@ reorder.nre.run.methods <- function (seed = NULL,
 
 
 
-  ### Restore random generator state
+  ### Restitute random generator state
   .Random.seed <- saved.seed
 
 

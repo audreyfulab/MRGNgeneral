@@ -30,25 +30,30 @@
 matteApply <- function (X, MARGIN, FUN, ..., chunk.size = NULL, simplify = TRUE,
                         cl = parallel::getDefaultCluster()) {
   if (is.null(cl)) {
-    # The function 'apply' accepts 'simplify' only for R 4.1 or more
-    Rversion = base::R.version
-    OK <- (as.numeric(Rversion$major) > 4) | ((as.numeric(Rversion$major) == 4) &
-                                                (as.numeric(Rversion$minor) >= 4.1))
-    if (OK) {
-      return(
-        apply(X = X, MARGIN = MARGIN, FUN = FUN, ..., simplify = simplify)
-      )
-    }
+    ## The function 'apply' accepts 'simplify' only for R 4.1 or more
+    ## Before R 4.1, it automatically simplifies the results
 
-    # Before R 4.1, it automatically simplifies the results
-    # simplify = TRUE, use 'apply'
+    # simplify = TRUE is the default in all cases
+    # So use 'apply' if simplify = TRUE
     if (simplify) {
       return(
         apply(X = X, MARGIN = MARGIN, FUN = FUN, ...)
       )
     }
 
-    # simplify = FALSE, use 'lapply'
+    # simplify = FALSE,
+
+    # Use apply if the version is OK
+    Rversion = base::R.version
+    OK <- (as.numeric(Rversion$major) > 4) | ((as.numeric(Rversion$major) == 4) &
+                                                (as.numeric(Rversion$minor) >= 1))
+    if (OK) {
+      return(
+        apply(X = X, MARGIN = MARGIN, FUN = FUN, ..., simplify = FALSE)
+      )
+    }
+
+    # use 'lapply' if not OK
     return(
       lapply(X = 1:dim(X)[MARGIN],
              FUN = function (j) {

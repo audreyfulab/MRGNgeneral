@@ -109,7 +109,8 @@
 #' of hubs' association with their neighbors, and recall and precision of
 #' confounder selection and network inference.
 #'
-#' @export
+#' @export describe.hubs
+#' @exportS3Method print summary.hubs
 #'
 #' @importFrom ppcor pcor
 #'
@@ -586,8 +587,6 @@ hatcorfun <- function (k, j, conf.sets, data, n_v, method) {
 }
 
 # Print an object of class 'summary.hubs'
-#' @method print summary.hubs
-#' @export
 print.summary.hubs <- function (x, digits = max(3, getOption("digits") - 3),
                                 ...) {
   # Print the call tha generated 'x'
@@ -628,20 +627,20 @@ print.summary.hubs <- function (x, digits = max(3, getOption("digits") - 3),
 
   cat('Parents: \n')
   df <- data.frame(Nb.parents = as.numeric(x$hubs$number.neighbors[x$hubs$hubs, 2]),
-                   Signal = as.numeric(x$raw.measures[,1]),
-                   Signal.est = as.numeric(x$raw.measures[,2]),
+                   `True.Signal` = as.numeric(x$raw.measures[,1]),
+                   `Used.Signal` = as.numeric(x$raw.measures[,2]),
                    Recall = as.numeric(x$raw.measures[,7]),
                    Precision = as.numeric(x$raw.measures[,8]),
-                   Crecall = as.numeric(x$raw.measures[,5]),
-                   Cprecision = as.numeric(x$raw.measures[,6])
+                   Conf.recall = as.numeric(x$raw.measures[,5]),
+                   Conf.precision = as.numeric(x$raw.measures[,6])
                    )
   rownames(df) <- names(x$hubs$hubs)
   print(df[df[,1] > 0,], digits = digits, ...)
 
   cat('\nChildren: \n')
   df <- data.frame(Nb.children = as.numeric(x$hubs$number.neighbors[x$hubs$hubs, 5]),
-                   Signal = as.numeric(x$raw.measures[,3]),
-                   Signal.est = as.numeric(x$raw.measures[,4]),
+                   `True.Signal` = as.numeric(x$raw.measures[,3]),
+                   `Used.Signal` = as.numeric(x$raw.measures[,4]),
                    Recall = as.numeric(x$raw.measures[,9]),
                    Precision = as.numeric(x$raw.measures[,10])
   )
