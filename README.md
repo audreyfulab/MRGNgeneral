@@ -23,7 +23,7 @@ You can install the development version of MRGNgeneral from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("audreyqyfulab/MRGNgeneral")
+devtools::install_github("audreyfulab/MRGNgeneral")
 ```
 
 ## Example
