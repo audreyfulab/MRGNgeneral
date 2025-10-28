@@ -43,7 +43,7 @@ simdata <- sample.graph.data(
 )
 # model with MRGNgeneral
 #install.packages("bnlearn", repos = "https://cran.r-project.org") if you set bn.methods, otherwise run.methods() only run MRGNgeneral method
-library(bnlearn)
+#library(bnlearn)
 result <- run.methods(
   simdata = simdata,    
   bn.methods = c("tabu", "hc"), #bn.methods = c("none",  "tabu", "hc", "pc.stable", "mmhc")
