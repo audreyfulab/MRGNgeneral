@@ -111,6 +111,9 @@ run.methods <- function (simdata = NULL,
       blocksize <- min(blocksize, n_t, n_v, 100)
 
     mycl <- if (nb.cl > 0) parallel::makeCluster(nb.cl) else NULL
+    if (nb.cl > 0) {
+      setup_cluster(mycl, packages = c("MRGN", "ppcor", "propagate"), seed = seed)
+    }
     conf.sets <- get.conf.sets (data = simdata$data[, 1:n_vtc], scale.data = TRUE,
                                n_v = n_v, n_t = n_t, n_c = n_c,
                                T.measure = T.measure,
@@ -170,6 +173,9 @@ run.methods <- function (simdata = NULL,
     ## Run MRGN: including selected T, U and V-nodes as confounders
     cat(paste0("\n ************ MRGN general ... \n"))
     mycl <- if (nb.cl > 0) parallel::makeCluster(nb.cl) else NULL
+    if (nb.cl > 0) {
+      setup_cluster(mycl, packages = c("MRGN", "ppcor"), seed = if (!is.null(seed)) seed + 1000 else NULL)
+    }
     MRGNTime <- system.time({
       MRGNfit <- MRGN(data = simdata$data[, 1:n_vtc, drop = FALSE],
                       Qlabels = conf.sets$WZindices,

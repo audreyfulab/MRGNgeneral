@@ -105,6 +105,9 @@ bnlearning <- function (data, # data.frame/matrix, typically the \code{data} ele
       if (verbose)
         cat(paste0("\n ************ PC (stable) ... \n"))
       mycl <- if (nb.cl > 0) parallel::makeCluster(nb.cl) else NULL
+      if (nb.cl > 0) {
+        setup_cluster(mycl, packages = c("bnlearn"), seed = NULL)
+      }
       TimePCstable = system.time({
         PCstable =  pc.stable (x = data,
                                cluster = mycl,

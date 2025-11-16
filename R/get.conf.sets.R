@@ -247,7 +247,8 @@ get.conf.sets <- function (data,
                            chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                            verbose = 0,
                            save.list = FALSE, # Only used if 'save.path' is not missing
-                           save.path = "/path/to/save/location/") { #
+                           save.path = "/path/to/save/location/",
+                           seed = NULL) { # seed for reproducible results in parallel computing
   ### Save the call
   mcall <- match.call()
 
@@ -916,6 +917,8 @@ check.get.conf.sets.args <- function () {
         # Use option cl.cores to choose an appropriate cluster size
         cl <- parallel::makeCluster(getOption("cl.cores", 2L))
       }
+      # Set up cluster with library paths, seed, and required packages
+      setup_cluster(cl, packages = c("MRGN", "ppcor", "propagate"), seed = seed)
       if (!is.null(chunk.size)) {
         stopifnot(is.numeric(chunk.size))
         chunk.size <- chunk.size[1]

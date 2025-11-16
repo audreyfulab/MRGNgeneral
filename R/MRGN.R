@@ -112,7 +112,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   parallel = FALSE,
                   cl = parallel:::getDefaultCluster(),
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
-                  verbose = 0L) {
+                  verbose = 0L,
+                  seed = NULL) { # seed for reproducible results in parallel computing
   # ============================================================================
   # Save the call to MRGN
   # ----------------------------------------------------------------------------
@@ -127,6 +128,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
       # Use option cl.cores to choose an appropriate cluster size
       cl <- parallel::makeCluster(getOption("cl.cores", 2L))
     }
+    # Set up cluster with library paths, seed, and required packages
+    setup_cluster(cl, packages = c("MRGN", "ppcor"), seed = seed)
     if (!is.null(chunk.size)) {
       stopifnot(is.numeric(chunk.size))
       chunk.size <- chunk.size[1]
