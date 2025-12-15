@@ -36,7 +36,8 @@ get.conf.sets(
   chunk.size = NULL,
   verbose = 0,
   save.list = FALSE,
-  save.path = "/path/to/save/location/"
+  save.path = "/path/to/save/location/",
+  seed = NULL
 )
 }
 \arguments{

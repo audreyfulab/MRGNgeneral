@@ -32,7 +32,8 @@ MRGN(
   parallel = FALSE,
   cl = parallel:::getDefaultCluster(),
   chunk.size = NULL,
-  verbose = 0L
+  verbose = 0L,
+  seed = NULL
 )
 }
 \arguments{

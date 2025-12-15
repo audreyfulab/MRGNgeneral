@@ -10,7 +10,7 @@ License: GPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 4.0.0)
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Date: 2023-11-20
 LazyData: true
 RdMacros: Rdpack
