@@ -6,7 +6,7 @@
 #'
 #' @export run.methods2
 #'
-run.methods2 <- function (simdata = NULL,
+run.methods2_m <- function (simdata = NULL,
                           n_t = 100,
                           n_v.t = 1,
                           conf.num.vec = c(W = 0, Z = 0, U = 200, K = 0, I = 100),
