@@ -134,6 +134,26 @@ MRGNfit <- MRGN(data = networkA11$data,
                 fdr = 0.05,
                 verbose = TRUE)
 
+# run.methods() is a wrap-up function that can run MRGN and other bn.learn methods
+# generate some data
+seed = 123
+simdata <- sample.graph.data(
+  n_t = 100, n_v.t = 1, family.n_v = NULL, conf.num.vec = c(W = 50, Z = 50, U = 200, K = 0, I = 10), graph_type = "scale-free", 
+  degree = 3, theta = 0.4, b0 = 0, b.snp = c(-0.5, 0.5), b.med = c(-0.8, 0.8), sigma = 0.1, neg.freq = 0.5, 
+  conf.coef.ranges = list(W = c(0.4, 0.5), Z = c(1, 1.5), U = c(0.4, 0.5), K = c(0.15, 0.5)), 
+  scale = FALSE, sample.size = 500, seed = seed
+)
+# model with MRGNgeneral
+#install.packages("bnlearn") if you set bn.methods, otherwise run.methods() only run MRGN method
+library(bnlearn)
+result <- run.methods(
+  simdata = simdata,    
+  bn.methods = c("tabu", "hc"), #bn.methods = c("none",  "tabu", "hc", "pc.stable", "mmhc")
+  selection_FDRcontrol = "qvalue", selection_fdr = 0.05, nb.cl = 8,
+  verbose = 1
+)
+result$fits$MRGN$adjacency
+
 ```
 
 <!-- What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so: -->
