@@ -4,16 +4,23 @@
 \alias{plot.adjacency.matrix}
 \title{Plot an adjacency matrix}
 \usage{
-# S3 method for class 'adjacency.matrix'
-plot(adjacency, ...)
+plot.adjacency.matrix(
+  x,
+  n_vt = NULL,
+  mode = c("directed", "undirected", "max", "min", "upper", "lower", "plus"),
+  layout = igraph::layout_nicely,
+  vertex.color = "green",
+  edge.arrow.size = 0.2,
+  ...
+)
 }
 \arguments{
-\item{adjacency}{A square matrix of class \code{adjacency}. This is passed to
+\item{x}{A square matrix of class \code{adjacency.matrix}. This is passed to
 \link{is.adjacency.matrix} for checking.}
 
 \item{n_vt}{numeric, the total number of \code{V} and \code{T} nodes
-of the graph represented by \code{adjacency}. The default (\code{NULL}) is all. When
-specified, \code{n_vt} must be less than or equal to \code{NCOL(adjacency)}.}
+of the graph represented by \code{x}. The default (\code{NULL}) is all. When
+specified, \code{n_vt} must be less than or equal to \code{NCOL(x)}.}
 
 \item{mode}{Character scalar, specifies how \code{igraph} should interpret the
 supplied matrix. See \code{graph_from_adjacency_matrix} in the library
@@ -38,6 +45,7 @@ The function's output is random.
 Set a random generator seed using \link{set.seed} for reproducibility.
 }
 \examples{
+\dontrun{
 ### Load the network 'networka11'
 library(MRGNgeneral)
 data(networka11)
@@ -50,5 +58,7 @@ adjacency <- structure(
 adjacency
 
 ### Plot the graph of the subset
-plot (adjacency)
+plot(adjacency)
+
+}
 }

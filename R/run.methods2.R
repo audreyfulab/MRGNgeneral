@@ -358,8 +358,8 @@ run.methods2 <- function (simdata = NULL,
                                                      stringent = stringent, verbose = verbose,
                                                      nb.cl = nb.cl, indexT = indexT,
                                                      bn.methods = bn.methods, restart.hc = restart.hc,
-                                                     whitelist0 = whitelist0, blacklist0 = blacklist0,
-                                                     run.MRGN = run.MRGN)  # Pass run.MRGN to reorder function
+                                                     whitelist0 = whitelist0, blacklist0 = blacklist0)
+                                                     #run.MRGN = run.MRGN)  # Pass run.MRGN to reorder function
       }
     }
     else {
@@ -371,8 +371,8 @@ run.methods2 <- function (simdata = NULL,
                                                      fdr = fdr, lambda = lambda,
                                                      analyse.triplets = analyse.triplets,
                                                      stringent = stringent, verbose = verbose,
-                                                     nb.cl = nb.cl, indexT = indexT,
-                                                     run.MRGN = run.MRGN)  # Pass run.MRGN to reorder function
+                                                     nb.cl = nb.cl, indexT = indexT)
+                                                     #run.MRGN = run.MRGN)  # Pass run.MRGN to reorder function
       }
     }
   }

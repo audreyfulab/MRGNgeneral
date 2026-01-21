@@ -15,7 +15,7 @@ Date: 2023-11-20
 LazyData: true
 RdMacros: Rdpack
 Imports: graph, igraph, qvalue, ff, propagate, methods, Rdpack,
-        parallel, ppcor, MRGN
+        parallel, ppcor, MRGN, pcalg, stringi, stringr
 NeedsCompilation: no
 Packaged: 2025-08-18 14:09:03 UTC; ctovissode
 Author: Chenangnon Tovissode [aut, cre] (<https://orcid.org/0000-0002-3685-3043>),

@@ -22,6 +22,7 @@
 #' @export get.initial.skeleton
 #'
 #' @examples
+#' \dontrun{
 #' #Raw data (networka11) & confounding variable selection result (confsetsa11)
 #' library(MRGNgeneral)
 #' data(networka11)
@@ -43,7 +44,7 @@
 #'                                     includeGV = TRUE,
 #'                                     edge.presence = 1.0,
 #'                                     edge.direction = 0.5)
-#'
+#'}
 
 # Inialize the input graph (adjacency matrix) for a call to MRGN
 get.initial.skeleton <- function (data,

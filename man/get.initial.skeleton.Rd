@@ -35,6 +35,7 @@ candidate confounding variables (\code{C}-nodes).
 This function implements \code{Step 2} of the MRGN general algorithm.
 }
 \examples{
+\dontrun{
 #Raw data (networka11) & confounding variable selection result (confsetsa11)
 library(MRGNgeneral)
 data(networka11)
@@ -56,5 +57,5 @@ Recall_Precision <- RecallPrecision(as (networka11$adjacency, 'graphNEL'),
                                     includeGV = TRUE,
                                     edge.presence = 1.0,
                                     edge.direction = 0.5)
-
+}
 }

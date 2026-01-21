@@ -122,6 +122,7 @@ reorder.conf.sets <- function (conf.sets, new.order, ...) {
 # is transformed into y = c(3, 1, 5) because: 2 in x is in the 3rd position in new.order,
 #                                             5 in x is in the 1st position in new.order, and
 #                                             7 in x is in the 5th position in new.order
+#' @export
 reorder.set <- function(x, new.order) {
   if (is.null(x)) {
     return(NULL)

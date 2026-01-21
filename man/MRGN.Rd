@@ -30,7 +30,7 @@ MRGN(
   method = "conservative",
   maxiter = NULL,
   parallel = FALSE,
-  cl = parallel:::getDefaultCluster(),
+  cl = parallel::getDefaultCluster(),
   chunk.size = NULL,
   verbose = 0L,
   seed = NULL

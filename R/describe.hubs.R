@@ -587,6 +587,7 @@ hatcorfun <- function (k, j, conf.sets, data, n_v, method) {
 }
 
 # Print an object of class 'summary.hubs'
+#' @export
 print.summary.hubs <- function (x, digits = max(3, getOption("digits") - 3),
                                 ...) {
   # Print the call tha generated 'x'

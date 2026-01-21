@@ -34,7 +34,7 @@
 #' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
-#' @export MRGN
+#' @export 
 #' @import parallel
 #' @importFrom MRGN class.vec
 #' @importFrom MRGN infer.trio
@@ -110,7 +110,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   method = "conservative",
                   maxiter = NULL,
                   parallel = FALSE,
-                  cl = parallel:::getDefaultCluster(),
+                  cl = parallel::getDefaultCluster(),
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
                   seed = NULL) { # seed for reproducible results in parallel computing
@@ -860,9 +860,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
 # A brief print method for MRGN output (class 'MRGN')
 # Issue with the count of edges: not consistent with graphNEL result
 # when there are some undirected edges
-# @exportS3Method print MRGN
-#
-# Not working: save arguments instead of the call. The call is only useful when extracted in the environment it was made.
+#' @export
 print.MRGN <- function (x, TTonly = FALSE, format = "adjacency",
                         digits = max(3, getOption("digits") - 3),
                         ...) {

@@ -25,10 +25,12 @@
 #'
 #' is.adjacency.matrix (Adj)
 #'
-#' is.adjacency.matrix (Adj + diag(1))
+#' is.adjacency.matrix (Adj + diag(3))
 #'
 # }
 #'
+#'
+#'@export
 is.adjacency.matrix <- function (object) {
   if (!is.matrix(object))
     return(FALSE)

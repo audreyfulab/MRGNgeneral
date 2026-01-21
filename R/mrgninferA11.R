@@ -12,6 +12,7 @@
 #' @source Generated in the package \code{MRGNgeneral}.
 #'
 #' @examples
+#' \dontrun{
 #' ## Load data (mrgninferA11)
 #' library(MRGNgeneral)
 #' data(mrgninferA11)
@@ -19,6 +20,7 @@
 #' ## Print a summary
 #' mrgninferA11
 #'
+#'}
 "mrgninferA11"
 
 #Adjacency0 <- get.initial.skeleton (data = networkA11$data,

@@ -1,6 +1,8 @@
 
 # Function to test the stability of network inference method
 # Re-order data columns and re-run network inference methods
+#' @export
+#' @importFrom stats reorder
 reorder.nre.run.methods <- function (seed = NULL,
                                      simdata, conf.sets, Adjacency0,
                                      alpha, FDRcontrol, fdr, lambda,

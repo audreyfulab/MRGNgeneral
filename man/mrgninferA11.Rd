@@ -18,6 +18,7 @@ An \code{.rda} structure as returned by \link{MRGN}, i.e.
 an object of class \code{'MRGN'}.
 }
 \examples{
+\dontrun{
 ## Load data (mrgninferA11)
 library(MRGNgeneral)
 data(mrgninferA11)
@@ -25,5 +26,6 @@ data(mrgninferA11)
 ## Print a summary
 mrgninferA11
 
+}
 }
 \keyword{datasets}

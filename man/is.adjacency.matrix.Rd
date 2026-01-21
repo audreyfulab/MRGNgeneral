@@ -31,7 +31,8 @@ Adj <- matrix(c(0, 1, 1,
 
 is.adjacency.matrix (Adj)
 
-is.adjacency.matrix (Adj + diag(1))
+is.adjacency.matrix (Adj + diag(3))
+
 
 
 }
