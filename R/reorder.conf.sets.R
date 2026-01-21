@@ -20,8 +20,6 @@
 #' @usage
 #' is.conf.sets (x)
 #'
-#' ## S3 method for class 'conf.sets'
-#' reorder (conf.sets, new.order, ...)
 #'
 #' @details
 #' The function \code{is.conf.sets} helps stop computations early if a user specified
