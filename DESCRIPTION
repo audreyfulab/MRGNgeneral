@@ -1,5 +1,5 @@
 Package: MRGNgeneral
-Title: Medenlian Randomization Genomic Network
+Title: Mendelian Randomization Genomic Network
 Version: 1.0.0
 Authors@R: c(
     person("Yong", "Bian",
