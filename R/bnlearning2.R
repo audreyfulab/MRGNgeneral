@@ -22,7 +22,9 @@ bnlearning2 <- function (data, # data.frame/matrix, typically the \code{data} el
   blacklist1 = cbind(paste0('G', blacklist0[,1]), paste0('G', blacklist0[,2]))
   
   if(any(c('tabu', 'hc', 'pc.stable', 'mmhc', 'fast.iamb', 'mmpc', 'hpc') %in% bn.methods)) {
-    require(bnlearn)
+    if (!requireNamespace("bnlearn", quietly = TRUE)) {
+      stop("Package 'bnlearn' is needed. Please install it.")
+    }
     
     ## Tabu Search -- Score-based (modified Hill-Climbing to escape local optima)
     if('tabu' %in% bn.methods) {
