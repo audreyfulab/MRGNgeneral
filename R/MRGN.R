@@ -28,7 +28,7 @@
 #' Passed to \link{update.adjacency.matrix}.
 #'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
-#' \link{parLapply}{parallel} (when supplied).
+#' \link[parallel]{parLapply} (when supplied).
 #'
 #'
 #' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one

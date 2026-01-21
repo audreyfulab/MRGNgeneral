@@ -40,7 +40,7 @@ that correspond to common children or intermediate variables in the general netw
 from which trios are formed.}
 
 \item{alpha}{significance level for individual tests, i.e. the rejection threshold
-for each Wald tests. Passed to \link{infer.trio}{MRGN}}
+for each Wald tests. Passed to \link[MRGN]{infer.trio}}
 
 \item{FDRcontrol}{character, method for p-value adjustment for multiple
 comparisons. Either \code{'qvalue'}, or any method accepted by \link{p.adjust}{stats}.}
@@ -61,7 +61,7 @@ columns are \code{T}-nodes (genes), and the remaining columns are
 \item{n_v, n_t}{integers, numbers of respectively \code{T}-nodes and \code{V}-nodes
 in \code{data}.}
 
-\item{use.perm, gamma, is.CNA, nperms, verbose}{arguments passed to \link{infer.trio}{MRGN}.}
+\item{use.perm, gamma, is.CNA, nperms, verbose}{arguments passed to \link[MRGN]{infer.trio}.}
 
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
 \link{parLapply}{parallel} (when supplied).}
@@ -69,6 +69,6 @@ in \code{data}.}
 \description{
 This function takes a set of trios including each a genetic variant,
 phenotypes, and optionally confounding variables, and performs the MRGN inference.
-This a wrapper for the function \link{infer.trio}{MRGN} of the package \code{MRGN}.
+This a wrapper for the function \link[MRGN]{infer.trio} of the package \code{MRGN}.
 \code{analyse.trio.set} returns a \code{data.frame} object with one row for each input trio.
 }

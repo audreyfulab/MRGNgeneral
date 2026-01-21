@@ -21,9 +21,9 @@
 #' for each Wald tests. Passed to \link[MRGN]{infer.trio}
 #'
 #' @param FDRcontrol character, method for p-value adjustment for multiple
-#' comparisons. Either \code{'qvalue'}, or any method accepted by \link{p.adjust}{stats}.
+#' comparisons. Either \code{'qvalue'}, or any method accepted by \link[stats]{p.adjust}.
 #'
-#' @param fdr,lambda,pi0.meth arguments passed to \link{adjust.q}{MRGN}.
+#' @param fdr,lambda,pi0.meth arguments passed to \link[MRGN]{adjust.q}.
 #'
 #' @param lambda.step used to define the default value of \code{lambda} when the latter is \code{NULL}.
 #'
