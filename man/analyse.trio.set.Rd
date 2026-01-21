@@ -43,9 +43,9 @@ from which trios are formed.}
 for each Wald tests. Passed to \link[MRGN]{infer.trio}}
 
 \item{FDRcontrol}{character, method for p-value adjustment for multiple
-comparisons. Either \code{'qvalue'}, or any method accepted by \link{p.adjust}{stats}.}
+comparisons. Either \code{'qvalue'}, or any method accepted by \link[stats]{p.adjust}.}
 
-\item{fdr, lambda, pi0.meth}{arguments passed to \link{adjust.q}{MRGN}.}
+\item{fdr, lambda, pi0.meth}{arguments passed to \link[MRGN]{adjust.q}.}
 
 \item{lambda.step}{used to define the default value of \code{lambda} when the latter is \code{NULL}.}
 

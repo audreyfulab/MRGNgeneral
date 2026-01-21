@@ -1,7 +1,7 @@
 #' Plot an adjacency matrix
 #'
 #' This function takes an adjacency matrix representing an acyclic graph
-#' and calls \link{igraph::plot.igraph} to plot the graph.
+#' and calls \link[igraph]{plot.igraph} to plot the graph.
 #'
 #' @param x A square matrix of class \code{adjacency.matrix}. This is passed to
 #' \link{is.adjacency.matrix} for checking.

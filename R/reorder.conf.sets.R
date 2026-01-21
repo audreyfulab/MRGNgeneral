@@ -40,7 +40,7 @@
 #' \code{is.conf.sets} returns a logical, \code{TRUE} is \code{x} is \code{'conf.sets'} class object.
 #'
 #' \code{reorder_conf_sets} returns an object of class 'conf.sets' with column
-#' identifiers updated based on the argument \code{new.order}. However, the slot code{raw} of
+#' identifiers updated based on the argument \code{new.order}. However, the slot \code{raw} of
 #' the input 'conf.sets' is not updated. An additional slot named \code{new.order} is added
 #' to the returned object (the presence of this optional slot will indicate that
 #' all other slots have been altered using \code{new.order}).

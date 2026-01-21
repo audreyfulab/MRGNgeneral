@@ -42,7 +42,7 @@
 #' in \code{data}.
 #'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
-#' \link{parLapply}{parallel} (when supplied).
+#' \link[parallel]{parLapply} (when supplied).
 #'
 #' @importFrom MRGN infer.trio
 #' @importFrom MRGN adjust.q
