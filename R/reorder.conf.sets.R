@@ -2,7 +2,7 @@
 #' Auxiliaries for \code{'conf.sets'} class object manipulations
 #'
 #' \code{is.conf.sets} tests if an object is of class \code{'conf.sets'}.
-#' \code{reorder.conf.sets} updates a \code{'conf.sets'} class object after
+#' \code{reorder_conf_sets} updates a \code{'conf.sets'} class object after
 #' the ordering of of the columns dataset used to obtain the \code{'conf.sets'}
 #' is modified. This is achieved by replacing column labels (numbers) of selected
 #' confounding variables by new labels (positions) in the column-reordered dataset
@@ -27,19 +27,19 @@
 #' The function \code{is.conf.sets} helps stop computations early if a user specified
 #' \code{'conf.sets'} object is not licit.
 #'
-#' The function \code{reorder.conf.sets} is useful to test the stability of
+#' The function \code{reorder_conf_sets} is useful to test the stability of
 #' network inference methods.
 #'
 #' @aliases is.conf.sets
-#' @aliases reorder.conf.sets
+#' @aliases reorder_conf_sets
 #'
 #' @export is.conf.sets
-#' @export reorder.conf.sets
+#' @export reorder_conf_sets
 #'
 #' @return
 #' \code{is.conf.sets} returns a logical, \code{TRUE} is \code{x} is \code{'conf.sets'} class object.
 #'
-#' \code{reorder.conf.sets} returns an object of class 'conf.sets' with column
+#' \code{reorder_conf_sets} returns an object of class 'conf.sets' with column
 #' identifiers updated based on the argument \code{new.order}. However, the slot code{raw} of
 #' the input 'conf.sets' is not updated. An additional slot named \code{new.order} is added
 #' to the returned object (the presence of this optional slot will indicate that
@@ -67,7 +67,7 @@
 #' VTCorder <- c(Vorder, Torder, Corder)
 #'
 #' ## Update 'confsetsA11'
-#' new.confsetsA11 <- reorder.conf.sets (confsetsA11, new.order = VTCorder)
+#' new.confsetsA11 <- reorder_conf_sets (confsetsA11, new.order = VTCorder)
 #'
 #' ## Compare the result with the expectation for V-nodes selected for individual 1
 #' cbind(# old = indices of selected V-nodes in the original dataset,
@@ -79,7 +79,7 @@
 #'                      FUN = function(x) which(VTCorder == x)))
 #
 
-reorder.conf.sets <- function (conf.sets, new.order, ...) {
+reorder_conf_sets <- function (conf.sets, new.order, ...) {
   # Check object class
   stopifnot(is.conf.sets (conf.sets))
   stopifnot(length(new.order) == length(unique(new.order)))
@@ -87,13 +87,13 @@ reorder.conf.sets <- function (conf.sets, new.order, ...) {
   # Re-order column numbers in each component of conf.sets
   new.conf.sets <- conf.sets
   new.conf.sets$Vconfounders <- lapply(conf.sets$Vconfounders, # For each Tj
-                                       FUN = reorder.set,
+                                       FUN = reorder_set,
                                        new.order = new.order)
   new.conf.sets$Tconfounders <- lapply(conf.sets$Tconfounders, # For each Tj
-                                       FUN = reorder.set,
+                                       FUN = reorder_set,
                                        new.order = new.order)
   new.conf.sets$Uconfounders <- lapply(conf.sets$Uconfounders, # For each Tj
-                                       FUN = reorder.set,
+                                       FUN = reorder_set,
                                        new.order = new.order)
   new.conf.sets$confounders <- mapply (FUN = function(x,y,z) {c(x, y, z)},
                                        new.conf.sets$Vconfounders,
@@ -101,14 +101,14 @@ reorder.conf.sets <- function (conf.sets, new.order, ...) {
                                        new.conf.sets$Uconfounders,
                                        SIMPLIFY = FALSE)
   new.conf.sets$UWZconfounders <- lapply(conf.sets$UWZconfounders, # For each Tj
-                                         FUN = reorder.set,
+                                         FUN = reorder_set,
                                          new.order = new.order)
   new.conf.sets$WZconfounders <- lapply(conf.sets$WZconfounders, # For each Vj
-                                        FUN = reorder.set,
+                                        FUN = reorder_set,
                                         new.order = new.order)
-  new.conf.sets$UWZindices <- reorder.set (conf.sets$UWZindices,
+  new.conf.sets$UWZindices <- reorder_set (conf.sets$UWZindices,
                                            new.order = new.order)
-  new.conf.sets$WZindices <- reorder.set (conf.sets$WZindices,
+  new.conf.sets$WZindices <- reorder_set (conf.sets$WZindices,
                                           new.order = new.order)
   new.conf.sets$new.order <- new.order
 
@@ -123,7 +123,7 @@ reorder.conf.sets <- function (conf.sets, new.order, ...) {
 #                                             5 in x is in the 1st position in new.order, and
 #                                             7 in x is in the 5th position in new.order
 #' @export
-reorder.set <- function(x, new.order) {
+reorder_set <- function(x, new.order) {
   if (is.null(x)) {
     return(NULL)
   }

@@ -349,7 +349,7 @@ run.methods2 <- function (simdata = NULL,
   if (n.reorder) {
     if(any(c('tabu', 'hc', 'pc.stable', 'mmhc', 'fast.iamb', 'mmpc', 'hpc') %in% bn.methods)) {
       for (k in 1:n.reorder) { # Reorder and re-run
-        out$reorder[[k]] <- reorder.nre.run.methods (seed = NULL,
+        out$reorder[[k]] <- reorder_nre_run_methods (seed = NULL,
                                                      simdata = simdata,
                                                      conf.sets = conf.sets, Adjacency0 = Adjacency0,
                                                      alpha = alpha, FDRcontrol = FDRcontrol,
@@ -364,7 +364,7 @@ run.methods2 <- function (simdata = NULL,
     }
     else {
       for (k in 1:n.reorder) { # Reorder and re-run
-        out$reorder[[k]] <- reorder.nre.run.methods (seed = NULL,
+        out$reorder[[k]] <- reorder_nre_run_methods (seed = NULL,
                                                      simdata = simdata,
                                                      conf.sets = conf.sets, Adjacency0 = Adjacency0,
                                                      alpha = alpha, FDRcontrol = FDRcontrol,

@@ -3,7 +3,7 @@
 # Re-order data columns and re-run network inference methods
 #' @export
 #' @importFrom stats reorder
-reorder.nre.run.methods <- function (seed = NULL,
+reorder_nre_run_methods <- function (seed = NULL,
                                      simdata, conf.sets, Adjacency0,
                                      alpha, FDRcontrol, fdr, lambda,
                                      analyse.triplets, stringent,
@@ -42,14 +42,14 @@ reorder.nre.run.methods <- function (seed = NULL,
   simdata$adjacency <- simdata$adjacency[VTCorder, VTCorder]
 
   # Re-order column indices in 'conf.sets'
-  conf.sets <- reorder.conf.sets (conf.sets, new.order = VTCorder)
+  conf.sets <- reorder_conf_sets (conf.sets, new.order = VTCorder)
   Adjacency0 <- Adjacency0[VTCorder, VTCorder]
 
   # Re-order column indices in 'whitelist0' and 'blacklist0'
-  whitelist0[,1] <- reorder.set (whitelist0[,1], new.order = VTCorder)
-  whitelist0[,2] <- reorder.set (whitelist0[,2], new.order = VTCorder)
-  blacklist0[,1] <- reorder.set (blacklist0[,1], new.order = VTCorder)
-  blacklist0[,2] <- reorder.set (blacklist0[,2], new.order = VTCorder)
+  whitelist0[,1] <- reorder_set (whitelist0[,1], new.order = VTCorder)
+  whitelist0[,2] <- reorder_set (whitelist0[,2], new.order = VTCorder)
+  blacklist0[,1] <- reorder_set (blacklist0[,1], new.order = VTCorder)
+  blacklist0[,2] <- reorder_set (blacklist0[,2], new.order = VTCorder)
 
   # Data for bnlearn calls
   bndata <- simdata$data

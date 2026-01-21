@@ -146,7 +146,7 @@
 #' \link{system.time}) for each selection step.}
 #' \item{new.order}{ \code{NULl} (not returned by this function),
 #' but can be a numeric vector of new column-orders used to alter other slots
-#' (except \code{time}), see \link{reorder.conf.sets}.}
+#' (except \code{time}), see \link{reorder_conf_sets}.}
 #' }
 #'
 #' @export get.conf.sets

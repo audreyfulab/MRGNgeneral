@@ -3,7 +3,7 @@
 # FDR control method, the grouping for adjustment (adjust_by),
 # the level of adjustment (fdr) or the individual p-value significance level (alpha)
 #' @export
-update.conf.sets <- function (object,
+update_conf_sets <- function (object,
                              T.measure = c("partial", "marginal"), # Selection measure
                              C.measure = T.measure,
                              FDRcontrol = c("qvalue", "bonferroni", "none"),

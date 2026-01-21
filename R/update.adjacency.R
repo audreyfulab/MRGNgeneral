@@ -104,7 +104,7 @@ update.adjacency.matrix <- function (adjacency,
 
     # Use the child function for triplets
     return(
-      update.adjacency.matrix_triplet (adjacency = adjacency,
+      update_adjacency_matrix_triplet (adjacency = adjacency,
                                        n_t = n_t, n_v = n_v, n_q = n_q, # Currently not used
                                        triplet.set = trio.set,
                                        inferred.models = inferred.models,
@@ -124,7 +124,7 @@ update.adjacency.matrix <- function (adjacency,
 
   # When 'inferred.models' is from trio analysis
   return(
-    update.adjacency.matrix_trio (adjacency = adjacency,
+    update_adjacency_matrix_trio (adjacency = adjacency,
                                   n_t = n_t, n_v = n_v, n_q = n_q,
                                   trio.set = trio.set,
                                   inferred.models = inferred.models,
