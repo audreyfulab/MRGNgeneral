@@ -1,10 +1,18 @@
 Package: MRGNgeneral
 Title: Medenlian Randomization Genomic Network
 Version: 1.0.0
-Authors@R: 
-    c(person("Chenangnon", "Tovissode", , "ctovissode@uidaho.edu", role = c("aut", "cre"),
-    comment = c(ORCID = "0000-0002-3685-3043")),
-    person("Audrey", "Fu", , "audreyf@uidaho.edu", role = c("aut")))
+Authors@R: c(
+    person("Yong", "Bian",
+           email = "id2207@wayne.edu",
+           role = c("aut", "cre"),
+            comment = c(ORCID = "0000-0002-0557-3145", email2 = "oliviabiany@hotmail.com")),
+    person("Chenangnon", "Tovissode", 
+           email = "ctovissode@uidaho.edu", 
+           role = "aut",
+           comment = c(ORCID = "0000-0002-3685-3043")),
+    person("Audrey", "Fu", 
+           role = "aut")
+)
 Description: This package infers a genetic network using the MRGN general algorithm based on the principle of mendelian randomization.
 License: GPL (>= 3)
 Encoding: UTF-8
@@ -16,8 +24,6 @@ LazyData: true
 RdMacros: Rdpack
 Imports: graph, igraph, qvalue, ff, propagate, methods, Rdpack,
         parallel, ppcor, MRGN, pcalg, stringi, stringr
+Suggests: bnlearn
 NeedsCompilation: no
 Packaged: 2025-08-18 14:09:03 UTC; ctovissode
-Author: Chenangnon Tovissode [aut, cre] (<https://orcid.org/0000-0002-3685-3043>),
-  Audrey Fu [aut]
-Maintainer: Chenangnon Tovissode <ctovissode@uidaho.edu>
