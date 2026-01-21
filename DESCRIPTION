@@ -10,9 +10,7 @@ Authors@R: c(
            email = "ctovissode@uidaho.edu", 
            role = "aut",
            comment = c(ORCID = "0000-0002-3685-3043")),
-    person("Audrey", "Fu", 
-           role = "aut")
-)
+    person("Audrey", "Fu", role = "aut"))
 Description: This package infers a genetic network using the MRGN general algorithm based on the principle of mendelian randomization.
 License: GPL (>= 3)
 Encoding: UTF-8
