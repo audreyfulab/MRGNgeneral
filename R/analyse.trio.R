@@ -3,7 +3,7 @@
 #'
 #' This function takes a set of trios including each a genetic variant,
 #' phenotypes, and optionally confounding variables, and performs the MRGN inference.
-#' This a wrapper for the function \link{infer.trio}{MRGN} of the package \code{MRGN}.
+#' This a wrapper for the function \link[MRGN]{infer.trio} of the package \code{MRGN}.
 #' \code{analyse.trio.set} returns a \code{data.frame} object with one row for each input trio.
 #'
 #' @param trio.set numeric matrix with three column, each row giving the numbers
@@ -18,7 +18,7 @@
 #' from which trios are formed.
 #'
 #' @param alpha significance level for individual tests, i.e. the rejection threshold
-#' for each Wald tests. Passed to \link{infer.trio}{MRGN}
+#' for each Wald tests. Passed to \link[MRGN]{infer.trio}
 #'
 #' @param FDRcontrol character, method for p-value adjustment for multiple
 #' comparisons. Either \code{'qvalue'}, or any method accepted by \link{p.adjust}{stats}.
@@ -27,7 +27,7 @@
 #'
 #' @param lambda.step used to define the default value of \code{lambda} when the latter is \code{NULL}.
 #'
-#' @param use.perm,gamma,is.CNA,nperms,verbose arguments passed to \link{infer.trio}{MRGN}.
+#' @param use.perm,gamma,is.CNA,nperms,verbose arguments passed to \link[MRGN]{infer.trio}.
 #'
 #' @param data \code{data.frame} object where columns indexed in \code{trio.set},
 #' \code{Qlabels}, \code{confounders} are taken from for trio analysis.
