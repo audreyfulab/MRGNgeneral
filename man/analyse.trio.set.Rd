@@ -64,7 +64,7 @@ in \code{data}.}
 \item{use.perm, gamma, is.CNA, nperms, verbose}{arguments passed to \link[MRGN]{infer.trio}.}
 
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
-\link{parLapply}{parallel} (when supplied).}
+\link[parallel]{parLapply} (when supplied).}
 }
 \description{
 This function takes a set of trios including each a genetic variant,
