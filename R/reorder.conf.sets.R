@@ -7,7 +7,8 @@
 #' is modified. This is achieved by replacing column labels (numbers) of selected
 #' confounding variables by new labels (positions) in the column-reordered dataset
 #'
-#' @param conf.sets,x an object of class 'conf.sets'
+#' @param conf.sets an object of class 'conf.sets'
+#' @param x an object of class 'conf.sets'
 #'
 #' @param new.order a numeric vector of the positions of variables in the original dataset,
 #' i.e., if e.g. the first element of \code{new.order} is 10, then the 10th variable

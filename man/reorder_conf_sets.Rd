@@ -5,7 +5,7 @@
 \alias{is.conf.sets}
 \title{Auxiliaries for \code{'conf.sets'} class object manipulations}
 \usage{
-is.conf.sets (x)
+reorder_conf_sets(conf.sets, new.order, ...)
 }
 \arguments{
 \item{conf.sets, x}{an object of class 'conf.sets'}
