@@ -6,9 +6,6 @@
 \title{Auxiliaries for \code{'conf.sets'} class object manipulations}
 \usage{
 is.conf.sets (x)
-
-## S3 method for class 'conf.sets'
-reorder (conf.sets, new.order, ...)
 }
 \arguments{
 \item{conf.sets, x}{an object of class 'conf.sets'}

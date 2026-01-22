@@ -228,7 +228,8 @@ get.conf.matrix <- function (data = NULL,
 }
 
 # Only adding arguments 'cl' and 'chunk.size' for parallel computing
-#' @export compute.pairwise.pcors
+#' @keywords internal
+#' @noRd
 compute.pairwise.pcors <-
   function (data, confs, cond.vars, cl = NULL, chunk.size = NULL) {
     p = ncol(data)

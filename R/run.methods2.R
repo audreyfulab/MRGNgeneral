@@ -243,7 +243,7 @@ run.methods2 <- function (simdata = NULL,
   if(any(c('tabu', 'hc', 'pc.stable', 'mmhc', 'fast.iamb', 'mmpc', 'hpc') %in% bn.methods)) {
     if (!is.null(conf.sets)) {
       ## Build matrix of Q,U -> T edges from confounding variable selection results
-      AdjQU_T <- MRGNgeneral:::get.adj.from.conf.list (conf.sets$UWZconfounders,
+      AdjQU_T <- get.adj.from.conf.list (conf.sets$UWZconfounders,
                                                        n_c = n_c,
                                                        offset = n_vt)
       

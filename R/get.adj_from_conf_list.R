@@ -5,7 +5,8 @@
 # Return a n_c X n_t matrix of 0/1 where
 # n_t in the number of genes (T-nodes); n_t = length(conf.list)
 
-#' @export get.adj.from.conf.list
+#' @keywords internal
+#' @noRd
 
 get.adj.from.conf.list <- function (conf.list,
                                     n_c,
