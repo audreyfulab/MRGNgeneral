@@ -4,7 +4,7 @@
 \alias{plot.adjacency.matrix}
 \title{Plot an adjacency matrix}
 \usage{
-plot.adjacency.matrix(
+\method{plot}{adjacency.matrix}(
   x,
   n_vt = NULL,
   mode = c("directed", "undirected", "max", "min", "upper", "lower", "plus"),

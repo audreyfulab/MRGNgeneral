@@ -17,8 +17,7 @@
 #'
 #' @param ... additional arguments passed to or from other methods, currently not used.
 #'
-#' @usage
-#' is.conf.sets (x)
+
 #'
 #'
 #' @details
