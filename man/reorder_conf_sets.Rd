@@ -8,7 +8,7 @@
 reorder_conf_sets(conf.sets, new.order, ...)
 }
 \arguments{
-\item{conf.sets, x}{an object of class 'conf.sets'}
+\item{conf.sets}{an object of class 'conf.sets'}
 
 \item{new.order}{a numeric vector of the positions of variables in the original dataset,
 i.e., if e.g. the first element of \code{new.order} is 10, then the 10th variable
@@ -17,6 +17,8 @@ Note that the elements of \code{new.order} must be unique, failure of this condi
 produces an error.}
 
 \item{...}{additional arguments passed to or from other methods, currently not used.}
+
+\item{x}{an object of class 'conf.sets'}
 }
 \value{
 \code{is.conf.sets} returns a logical, \code{TRUE} is \code{x} is \code{'conf.sets'} class object.

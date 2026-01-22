@@ -8,7 +8,7 @@
 #' confounding variables by new labels (positions) in the column-reordered dataset
 #'
 #' @param conf.sets an object of class 'conf.sets'
-#' @param x an object of class 'conf.sets'
+
 #'
 #' @param new.order a numeric vector of the positions of variables in the original dataset,
 #' i.e., if e.g. the first element of \code{new.order} is 10, then the 10th variable
@@ -28,10 +28,10 @@
 #' The function \code{reorder_conf_sets} is useful to test the stability of
 #' network inference methods.
 #'
-#' @aliases is.conf.sets
-#' @aliases reorder_conf_sets
+
+#' @rdname reorder_conf_sets
 #'
-#' @export is.conf.sets
+
 #' @export reorder_conf_sets
 #'
 #' @return
@@ -138,6 +138,27 @@ reorder_set <- function(x, new.order) {
 #
 # Tests if its argument is a \code{'conf.sets'} class object
 #
+#' Test if an object is a conf.sets object
+#'
+#' Tests if its argument is a \code{'conf.sets'} class object.
+#'
+#' @param x An object to test
+#'
+#' @return Logical, \code{TRUE} if \code{x} is a \code{'conf.sets'} class object, \code{FALSE} otherwise
+#'
+#' @rdname is.conf.sets
+#' @export
+#'
+#' @examples
+#' ## Load data
+#' library(MRGNgeneral)
+#' data(confsetsA11)
+#'
+#' ## Test if 'confsetsA11' is a 'conf.sets' object
+#' is.conf.sets(confsetsA11)
+#'
+#' ## Test if a list of one element 'a = 0' is a 'conf.sets' object
+#' is.conf.sets(list(a = 0))
 is.conf.sets <- function(x) {
   # First check that 'x' is a list
   if (!is.list(x)) {
