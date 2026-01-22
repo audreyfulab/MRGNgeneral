@@ -11,6 +11,9 @@
 #' @param n_v,n_t integer scalars, number of genetic variants (\code{n_v}), and
 #' target phenotypes (\code{n_t}) in \code{adjacency}.
 # Not required when \code{solve.conflicts = FALSE}.
+#' @param n_q integer scalar, number of intermediate variables/common children 
+#'   (\code{Q}-nodes) in \code{adjacency}. Currently not used
+#'
 #'
 #' @param trio.set numeric, a matrix where each row indicates the column numbers
 #' of variables forming a trio.
@@ -34,7 +37,8 @@
 #'
 #' @param stringent logical, should edges absent from trio topologies \code{M1.1},
 #' \code{M1.2}, \code{M2.1}, and \code{M2.2} be considered absent from the graph?
-#'
+#' @param add.edges logical, should edges be added to the adjacency matrix? 
+#'   Default is TRUE
 #' @param solve.conflicts logical, should a resolution of conflicts be attempted?
 #' If \code{FALSE}, edges are updated sequentially and conflicts are not noticed.
 #' This makes the final inference depends on the order in which trios are analysed.
@@ -60,7 +64,8 @@
 #' @param cl a cluster object, created by one of the packages \code{parallel} and \code{snow}.
 #' If \code{NULL}, the registered default cluster is used. Note that the latter can be
 #' \code{NULL} too, in which case, no parallel computation is performed.
-#'
+#' @param chunk.size integer, chunk size for parallel computation when \code{cl} is not NULL.
+#'   If NULL, a default chunk size is used
 #' @param ... additional arguments passed to or from other methods.
 #' Currently none.
 #'

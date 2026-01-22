@@ -50,11 +50,11 @@
 #' If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol} is missing,
 #' \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
 #'
-#' @param adjust_by,V.adjust_by,T.adjust_by,C.adjust_by,Q.FDRcontrol character indicating the
+#' @param adjust_by,V.adjust_by,T.adjust_by,C.adjust_by,Q.adjust_by character indicating the
 #' adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
 #' \code{"individual"} (adjust p-values for each gene separately),
 #' and \code{"all"} (adjust all p-values for all genes at once).
-#' If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by} is missing,
+#' If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by}, \code{Q.adjust_by} is missing,
 #' \code{adjust_by} is used, otherwise \code{adjust_by} is ignored.
 #'
 #' @param T.filter logical, should \code{T}-node selection attempt to filter out
@@ -69,7 +69,15 @@
 #' @param cl,chunk.size a cluster object (\code{cl}) for parallel computations,
 #' and a numeric scalar (\code{chunk.size}) to schedule parallel tasks.
 #' Only used if \code{parallel = TRUE}.
+#' @param blocksize integer, block size for computing correlation matrices in chunks
+#'   using \link[propagate]{bigcor}. Default is 100. Smaller values use less memory 
+#'   but may be slower
 #'
+#' @param verbose integer, verbosity level. 0 (default) for silent operation, 
+#'   higher values for more detailed progress messages
+#'
+#' @param seed integer, random seed for reproducible results in parallel computing.
+#'   If NULL (default), no seed is set
 #' @param save.list (logical) if TRUE the output is saved as a \code{.RData}
 #' object (default = FALSE).
 #'

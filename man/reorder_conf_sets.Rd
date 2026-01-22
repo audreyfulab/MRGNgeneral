@@ -2,7 +2,6 @@
 % Please edit documentation in R/reorder.conf.sets.R
 \name{reorder_conf_sets}
 \alias{reorder_conf_sets}
-\alias{is.conf.sets}
 \title{Auxiliaries for \code{'conf.sets'} class object manipulations}
 \usage{
 reorder_conf_sets(conf.sets, new.order, ...)
@@ -17,8 +16,6 @@ Note that the elements of \code{new.order} must be unique, failure of this condi
 produces an error.}
 
 \item{...}{additional arguments passed to or from other methods, currently not used.}
-
-\item{x}{an object of class 'conf.sets'}
 }
 \value{
 \code{is.conf.sets} returns a logical, \code{TRUE} is \code{x} is \code{'conf.sets'} class object.

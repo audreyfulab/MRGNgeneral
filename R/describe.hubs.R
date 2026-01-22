@@ -24,6 +24,16 @@
 #'
 #' @param data \code{data.frame} object with a random sample for each node in
 #' the network \code{adjacency} matrix to be used to describe the network.
+#' @param conf.sets An object of class \code{'conf.sets'} containing the selected 
+#'   confounders for each phenotype. See \link{get.conf.sets}
+#'
+#' @param inferred.adjacency Numeric (binary) matrix, the adjacency matrix of the 
+#'   inferred network to be evaluated
+#'
+#' @param ... Additional arguments passed to \code{method} when \code{method} is a function
+#'
+#' @param method either a \code{character} or a \code{function} indicating the
+#' association measure to use. When \code{method} is a character, One of "pearson"
 #'
 #' @param method either a \code{character} or a \code{function} indicating the
 #' association measure to use. When \code{method} is a character, One of "pearson"
