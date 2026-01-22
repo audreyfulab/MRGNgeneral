@@ -29,7 +29,7 @@
 #' @return Returns \code{NULL}, invisibly.
 #'
 #' @exportS3Method plot adjacency.matrix
-#' @export plot.adjacency.matrix
+
 #' @importFrom igraph graph_from_adjacency_matrix
 #' @importFrom igraph plot.igraph
 #' @importFrom graphics par
