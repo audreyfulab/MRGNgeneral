@@ -1,6 +1,7 @@
 # Update all edges at once (not sequentially) based on trio analysis
 # Internal child function of "update.adjacency.matrix
-#' @export
+#' @keywords internal
+#' @noRd
 update_adjacency_matrix_trio <-
   function (adjacency,
             n_v, n_t, n_q, # Currently not used,
