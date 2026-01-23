@@ -69,18 +69,22 @@ Pearson's correlation given \code{V}-nodes, and \code{"marginal"} for correlatio
 coefficient. The measure used for \code{V}-nodes selection is always the
 marginal correlation coefficient.}
 
-\item{FDRcontrol, V.FDRcontrol, T.FDRcontrol, C.FDRcontrol}{characters indicating
+\item{blocksize}{integer, block size for computing correlation matrices in chunks
+using \link[propagate]{bigcor}. Default is 100. Smaller values use less memory
+but may be slower}
+
+\item{FDRcontrol, V.FDRcontrol, T.FDRcontrol, C.FDRcontrol, Q.FDRcontrol}{characters indicating
 the FDR control methods to be used for different selections.
 One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 \code{"bonferroni"} (see \link[stats]{p.adjust}).
-If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol} is missing,
+If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
 \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.}
 
-\item{adjust_by, V.adjust_by, T.adjust_by, C.adjust_by, Q.FDRcontrol}{character indicating the
+\item{adjust_by, V.adjust_by, T.adjust_by, C.adjust_by, Q.adjust_by}{character indicating the
 adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
 \code{"individual"} (adjust p-values for each gene separately),
 and \code{"all"} (adjust all p-values for all genes at once).
-If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by} is missing,
+If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by}, \code{Q.adjust_by} is missing,
 \code{adjust_by} is used, otherwise \code{adjust_by} is ignored.}
 
 \item{T.filter}{logical, should \code{T}-node selection attempt to filter out
@@ -96,11 +100,17 @@ Defaults to \code{FALSE}.}
 and a numeric scalar (\code{chunk.size}) to schedule parallel tasks.
 Only used if \code{parallel = TRUE}.}
 
+\item{verbose}{integer, verbosity level. 0 (default) for silent operation,
+higher values for more detailed progress messages}
+
 \item{save.list}{(logical) if TRUE the output is saved as a \code{.RData}
 object (default = FALSE).}
 
 \item{save.path}{string specifying the path name of the output list to be save
 as a \code{.RData} structure. Only used if \code{save.list = TRUE}.}
+
+\item{seed}{integer, random seed for reproducible results in parallel computing.
+If NULL (default), no seed is set}
 }
 \value{
 an object of class \code{'conf.sets'}, i.e. a named list with elements:

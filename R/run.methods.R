@@ -1,8 +1,57 @@
-#'
-#' MRGN and \code{bnlearn} methods
-#'
-#' Run MRGN and selected \code{bnlearn} methods on one simulated genomic dataset.
+#' @name run.methods
+#' @title Run MRGN and bnlearn methods
+#' @description Run MRGN and selected \code{bnlearn} methods on one simulated genomic dataset.
 #' Depends on package \code{bnlearn} which is not imported and loaded with MRGNgeneral.
+#'
+#' @param simdata Simulated data object from \code{sample.graph.data}, or NULL to generate new data
+#' @param n_t Integer, number of T-nodes (phenotypes)
+#' @param n_v.t Numeric, number of V-nodes per T-node
+#' @param conf.num.vec Named numeric vector of confounder counts
+#' @param graph_type Character, type of graph structure
+#' @param degree Integer, average node degree
+#' @param theta Numeric, minor allele frequency
+#' @param b0 Numeric, baseline value
+#' @param b.snp Numeric vector, range for SNP effects
+#' @param b.med Numeric vector, range for mediator effects
+#' @param sigma Numeric, noise standard deviation
+#' @param neg.freq Numeric, frequency of negative effects
+#' @param conf.coef.ranges List of coefficient ranges for confounders
+#' @param sample.size Integer, number of samples
+#' @param seed Integer, random seed
+#' @param conf.sets Confounder sets from \code{get.conf.sets}, or NULL to compute
+#' @param blocksize Integer, block size for parallel processing
+#' @param T.measure Character, measure type for T-nodes
+#' @param C.measure Character, measure type for C-nodes
+#' @param selection_FDRcontrol Character, FDR control method for selection
+#' @param T.FDRcontrol Character, FDR control for T-nodes
+#' @param C.FDRcontrol Character, FDR control for C-nodes
+#' @param V.FDRcontrol Character, FDR control for V-nodes
+#' @param adjust_by Character, adjustment method
+#' @param T.adjust_by Character, adjustment method for T-nodes
+#' @param C.adjust_by Character, adjustment method for C-nodes
+#' @param V.adjust_by Character, adjustment method for V-nodes
+#' @param selection_alpha Numeric, alpha level for selection
+#' @param selection_fdr Numeric, FDR level for selection
+#' @param lambda Numeric, tuning parameter for q-value estimation
+#' @param pi0.method Character, method for pi0 estimation
+#' @param bn.methods Character vector of bnlearn methods to run
+#' @param MRGNfit Pre-computed MRGN fit object, or NULL
+#' @param threshold_v Numeric, threshold for V-node associations
+#' @param threshold_m Numeric, threshold for marginal associations
+#' @param alpha Numeric, significance level
+#' @param FDRcontrol Character, FDR control method for MRGN
+#' @param fdr Numeric, FDR level for MRGN
+#' @param analyse.triplets Logical, whether to analyze triplets
+#' @param stringent Logical, use stringent edge criteria
+#' @param restart.hc Integer, number of restarts for hill-climbing
+#' @param n.reorder Integer, number of reordering iterations
+#' @param verbose Integer, verbosity level
+#' @param nb.cl Integer, number of parallel clusters
+#' @param savetopath Logical, whether to save results to path
+#' @param path Character, base path for saving
+#' @param setpath Character, subdirectory for saving
+#'
+#' @return A list containing performance metrics, simulated data, confounder sets, and model fits
 #'
 #' @export run.methods
 #'

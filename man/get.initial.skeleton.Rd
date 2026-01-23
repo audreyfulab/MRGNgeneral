@@ -2,7 +2,7 @@
 % Please edit documentation in R/get.initial_skeleton.R
 \name{get.initial.skeleton}
 \alias{get.initial.skeleton}
-\title{Build the input graph for MRGN inference}
+\title{#' Build the input graph for MRGN inference}
 \usage{
 get.initial.skeleton(
   data,
@@ -14,6 +14,23 @@ get.initial.skeleton(
 )
 }
 \arguments{
+\item{data}{Matrix or data frame where rows are individuals/samples and columns
+are variables. The first \code{n_v} columns should be variants (V-nodes),
+followed by \code{n_t} phenotypes (T-nodes), and then candidate confounding
+variables (C-nodes)}
+
+\item{n_v}{Integer, number of genetic variants (V-nodes) in the network}
+
+\item{n_t}{Integer, number of target phenotypes (T-nodes) in the network}
+
+\item{threshold_v}{Numeric, threshold for determining V-T edges based on
+absolute correlation. Default is 0.2. Edges with correlation >= threshold_v
+are included in the skeleton}
+
+\item{threshold_m}{Numeric, threshold for determining T-T edges based on
+absolute correlation (marginal or partial). Default is 0.05. Edges with
+correlation >= threshold_m are included in the skeleton}
+
 \item{conf.sets}{an optional object of class \code{conf.sets} as returned by
 \link{get.conf.sets}.}
 }

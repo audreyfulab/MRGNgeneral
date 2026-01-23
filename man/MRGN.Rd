@@ -39,6 +39,9 @@ MRGN(
 \arguments{
 \item{data}{\code{data.frame}}
 
+\item{scale.data}{Logical, should the data be scaled (standardized) before processing?
+Default is TRUE. Only genes and confounders are scaled; variants are not scaled}
+
 \item{Qlabels}{labels indicating columns of \code{data} which are
 \code{Q}-nodes (common children or intermediate variables).}
 
@@ -50,12 +53,61 @@ confounders for each phenotype, as returned by \link{get.conf.sets}.}
 
 \item{adjacency}{input adjacency matrix (binary)}
 
+\item{is.CNA}{Logical, indicating if a genetic variant is a copy number alteration (CNA).
+Default is FALSE}
+
+\item{alpha}{Numeric in (0, 0.5), type I error rate for individual tests. Default is 0.01}
+
+\item{use.perm}{Logical, should permutation tests be used? See \link[MRGN]{infer.trio}.
+Default is TRUE}
+
+\item{gamma}{Numeric, significance level for permutation tests when \code{use.perm = TRUE}.
+Default is 0.05}
+
+\item{nperms}{Integer, number of permutations to use when \code{use.perm = TRUE}.
+Default is 10000}
+
+\item{FDRcontrol}{Character, FDR control method. One of "bonferroni", "qvalue", or "none".
+Default is "bonferroni"}
+
+\item{fdr}{Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration.
+Only used if \code{FDRcontrol = "qvalue"}. Default is 0.05}
+
+\item{lambda}{Numeric, tuning parameter for pi0 estimation in q-value calculation.
+If NULL (default), initialized using \code{lambda.step}}
+
+\item{lambda.step}{Numeric in (0, 0.1), step size used to initialize \code{lambda}
+when \code{lambda = NULL}. Default is 0.05}
+
+\item{pi0.meth}{Character, method for pi0 estimation. One of "bootstrap" or "smoother".
+Default is "bootstrap"}
+
 \item{stringent}{logical, should edges not appearing in \code{'M1'} and
 \code{'M2'} trio structures be dropped during adjacency matrix update?
 Passed to \link{update.adjacency.matrix}.}
 
+\item{analyse.triplets}{Logical, should triplets (trios with no genetic variants) be analyzed?
+Default is TRUE}
+
+\item{solve.conflicts}{Logical, should conflicts in edge directions be resolved?
+Default is TRUE}
+
+\item{method}{Character, method for resolving conflicts when \code{solve.conflicts = TRUE}.
+Default is "conservative". Passed to \link{update.adjacency.matrix}}
+
+\item{maxiter}{Integer, maximum number of iterations for the iterative algorithm.
+If NULL (default), no limit is imposed}
+
+\item{parallel}{Logical, should computations be parallelized? Default is FALSE}
+
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
 \link[parallel]{parLapply} (when supplied).}
+
+\item{verbose}{Integer, verbosity level. 0 (default) for minimal output, higher values
+for more detailed progress messages}
+
+\item{seed}{Integer, random seed for reproducible results in parallel computing.
+If NULL (default), no seed is set}
 }
 \description{
 Infer a causal network/graph with directed and undirected edges from observational data.

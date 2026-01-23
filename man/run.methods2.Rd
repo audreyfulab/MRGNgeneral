@@ -2,7 +2,7 @@
 % Please edit documentation in R/run.methods2.R
 \name{run.methods2}
 \alias{run.methods2}
-\title{MRGN and \code{bnlearn} methods}
+\title{Run MRGN and bnlearn methods (extended)}
 \usage{
 run.methods2(
   simdata = NULL,
@@ -56,7 +56,108 @@ run.methods2(
   setpath = ""
 )
 }
+\arguments{
+\item{simdata}{Simulated data object from \code{sample.graph.data}, or NULL to generate new data}
+
+\item{n_t}{Integer, number of T-nodes (phenotypes)}
+
+\item{n_v.t}{Numeric, number of V-nodes per T-node}
+
+\item{conf.num.vec}{Named numeric vector of confounder counts}
+
+\item{graph_type}{Character, type of graph structure}
+
+\item{degree}{Integer, average node degree}
+
+\item{theta}{Numeric, minor allele frequency}
+
+\item{b0}{Numeric, baseline value}
+
+\item{b.snp}{Numeric vector, range for SNP effects}
+
+\item{b.med}{Numeric vector, range for mediator effects}
+
+\item{sigma}{Numeric, noise standard deviation}
+
+\item{neg.freq}{Numeric, frequency of negative effects}
+
+\item{conf.coef.ranges}{List of coefficient ranges for confounders}
+
+\item{sample.size}{Integer, number of samples}
+
+\item{seed}{Integer, random seed}
+
+\item{conf.sets}{Confounder sets from \code{get.conf.sets}, or NULL to compute}
+
+\item{blocksize}{Integer, block size for parallel processing}
+
+\item{T.measure}{Character, measure type for T-nodes}
+
+\item{C.measure}{Character, measure type for C-nodes}
+
+\item{selection_FDRcontrol}{Character, FDR control method for selection}
+
+\item{T.FDRcontrol}{Character, FDR control for T-nodes}
+
+\item{C.FDRcontrol}{Character, FDR control for C-nodes}
+
+\item{V.FDRcontrol}{Character, FDR control for V-nodes}
+
+\item{adjust_by}{Character, adjustment method}
+
+\item{T.adjust_by}{Character, adjustment method for T-nodes}
+
+\item{C.adjust_by}{Character, adjustment method for C-nodes}
+
+\item{V.adjust_by}{Character, adjustment method for V-nodes}
+
+\item{selection_alpha}{Numeric, alpha level for selection}
+
+\item{selection_fdr}{Numeric, FDR level for selection}
+
+\item{lambda}{Numeric, tuning parameter for q-value estimation}
+
+\item{pi0.method}{Character, method for pi0 estimation}
+
+\item{bn.methods}{Character vector of bnlearn methods to run}
+
+\item{run.MRGN}{Logical, whether to run MRGN}
+
+\item{MRGNfit}{Pre-computed MRGN fit object, or NULL}
+
+\item{threshold_v}{Numeric, threshold for V-node associations}
+
+\item{threshold_m}{Numeric, threshold for marginal associations}
+
+\item{alpha}{Numeric, significance level}
+
+\item{FDRcontrol}{Character, FDR control method for MRGN}
+
+\item{fdr}{Numeric, FDR level for MRGN}
+
+\item{analyse.triplets}{Logical, whether to analyze triplets}
+
+\item{stringent}{Logical, use stringent edge criteria}
+
+\item{restart.hc}{Integer, number of restarts for hill-climbing}
+
+\item{n.reorder}{Integer, number of reordering iterations}
+
+\item{verbose}{Integer, verbosity level}
+
+\item{nb.cl}{Integer, number of parallel clusters}
+
+\item{savetopath}{Logical, whether to save results to path}
+
+\item{path}{Character, base path for saving}
+
+\item{setpath}{Character, subdirectory for saving}
+}
+\value{
+A list containing performance metrics, simulated data, confounder sets, and model fits
+}
 \description{
 Run MRGN and selected \code{bnlearn} methods on one simulated genomic dataset.
 Depends on package \code{bnlearn} which is not imported and loaded with MRGNgeneral.
+Extended version with additional bnlearn methods.
 }

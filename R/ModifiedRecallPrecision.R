@@ -1,5 +1,8 @@
 
 #' @title Calculate recall and precision for an inferred graph given the true graph
+#' @importClassesFrom graph graphNEL
+#' @importMethodsFrom graph edgeL nodes
+#' @importFrom Rdpack reprompt
 #'
 #' @description
 #' This function counts the number of true and false positives, and calculates

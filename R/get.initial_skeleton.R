@@ -1,10 +1,33 @@
 
-#' Build the input graph for MRGN inference
+#'
+#'#' Build the input graph for MRGN inference
 #'
 #' Build an undirected adjacency matrix for a genomic network using a dataset
 #' where rows are individuals and columns are nodes including \code{n_v} variants
 #' (\code{V}-nodes), \code{n_t} phenotypes (\code{T}-nodes), and \code{n_c}
 #' candidate confounding variables (\code{C}-nodes).
+#'
+#' @param data Matrix or data frame where rows are individuals/samples and columns 
+#'   are variables. The first \code{n_v} columns should be variants (V-nodes), 
+#'   followed by \code{n_t} phenotypes (T-nodes), and then candidate confounding 
+#'   variables (C-nodes)
+#'
+#' @param n_v Integer, number of genetic variants (V-nodes) in the network
+#'
+#' @param n_t Integer, number of target phenotypes (T-nodes) in the network
+#'
+#' @param threshold_v Numeric, threshold for determining V-T edges based on 
+#'   absolute correlation. Default is 0.2. Edges with correlation >= threshold_v 
+#'   are included in the skeleton
+#'
+#' @param threshold_m Numeric, threshold for determining T-T edges based on 
+#'   absolute correlation (marginal or partial). Default is 0.05. Edges with 
+#'   correlation >= threshold_m are included in the skeleton
+#'
+#' @param conf.sets an optional object of class \code{conf.sets} as returned by
+#' \link{get.conf.sets}.
+#'
+#'
 #'
 #' @param conf.sets an optional object of class \code{conf.sets} as returned by
 #' \link{get.conf.sets}.

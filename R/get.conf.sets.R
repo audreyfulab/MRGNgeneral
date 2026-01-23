@@ -43,11 +43,11 @@
 #' coefficient. The measure used for \code{V}-nodes selection is always the
 #' marginal correlation coefficient.
 #'
-#' @param FDRcontrol,V.FDRcontrol,T.FDRcontrol,C.FDRcontrol characters indicating
+#' @param FDRcontrol,V.FDRcontrol,T.FDRcontrol,C.FDRcontrol,Q.FDRcontrol characters indicating
 #' the FDR control methods to be used for different selections.
 #' One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 #' \code{"bonferroni"} (see \link[stats]{p.adjust}).
-#' If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol} is missing,
+#' If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
 #' \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
 #'
 #' @param adjust_by,V.adjust_by,T.adjust_by,C.adjust_by,Q.adjust_by character indicating the

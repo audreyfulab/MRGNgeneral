@@ -23,6 +23,59 @@
 #'
 #' @param adjacency input adjacency matrix (binary)
 #'
+#' @param scale.data Logical, should the data be scaled (standardized) before processing? 
+#'   Default is TRUE. Only genes and confounders are scaled; variants are not scaled
+#'
+#' @param is.CNA Logical, indicating if a genetic variant is a copy number alteration (CNA).
+#'   Default is FALSE
+#'
+#' @param alpha Numeric in (0, 0.5), type I error rate for individual tests. Default is 0.01
+#'
+#' @param use.perm Logical, should permutation tests be used? See \link[MRGN]{infer.trio}. 
+#'   Default is TRUE
+#'
+#' @param gamma Numeric, significance level for permutation tests when \code{use.perm = TRUE}.
+#'   Default is 0.05
+#'
+#' @param nperms Integer, number of permutations to use when \code{use.perm = TRUE}. 
+#'   Default is 10000
+#'
+#' @param FDRcontrol Character, FDR control method. One of "bonferroni", "qvalue", or "none".
+#'   Default is "bonferroni"
+#'
+#' @param fdr Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration.
+#'   Only used if \code{FDRcontrol = "qvalue"}. Default is 0.05
+#'
+#' @param lambda Numeric, tuning parameter for pi0 estimation in q-value calculation. 
+#'   If NULL (default), initialized using \code{lambda.step}
+#'
+#' @param lambda.step Numeric in (0, 0.1), step size used to initialize \code{lambda} 
+#'   when \code{lambda = NULL}. Default is 0.05
+#'
+#' @param pi0.meth Character, method for pi0 estimation. One of "bootstrap" or "smoother".
+#'   Default is "bootstrap"
+#'
+#' @param analyse.triplets Logical, should triplets (trios with no genetic variants) be analyzed?
+#'   Default is TRUE
+#'
+#' @param solve.conflicts Logical, should conflicts in edge directions be resolved?
+#'   Default is TRUE
+#'
+#' @param method Character, method for resolving conflicts when \code{solve.conflicts = TRUE}.
+#'   Default is "conservative". Passed to \link{update.adjacency.matrix}
+#'
+#' @param maxiter Integer, maximum number of iterations for the iterative algorithm.
+#'   If NULL (default), no limit is imposed
+#'
+#' @param parallel Logical, should computations be parallelized? Default is FALSE
+#'
+#' @param verbose Integer, verbosity level. 0 (default) for minimal output, higher values 
+#'   for more detailed progress messages
+#'
+#' @param seed Integer, random seed for reproducible results in parallel computing.
+#'   If NULL (default), no seed is set
+#'
+
 #' @param stringent logical, should edges not appearing in \code{'M1'} and
 #' \code{'M2'} trio structures be dropped during adjacency matrix update?
 #' Passed to \link{update.adjacency.matrix}.
@@ -34,11 +87,14 @@
 #' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
-#' @export 
+#' @export
 #' @import parallel
 #' @importFrom MRGN class.vec
 #' @importFrom MRGN infer.trio
 #' @importFrom MRGN adjust.q
+#' @importFrom methods as is
+#' @importFrom stats cor cov cov2cor p.adjust.methods pnorm sd
+#' @importFrom utils combn installed.packages
 #'
 #'
 #' @examples

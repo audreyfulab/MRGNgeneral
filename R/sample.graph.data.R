@@ -1,11 +1,71 @@
-#' sample.graph.data
-#'
+
+#' @name sample.graph.data
+#' @title Sample graph data with genetic variants
 #' @description Different from \code{sim.graph.data} in the way \code{V}-nodes are
 #' included in the network skeleton: here there are just added (not simulated).
 #' The number of \code{V}-nodes is specified for each \code{T}-node, or sampled
 #' from a count distribution. Each \code{V}-node is only related to only one \code{T}-node.
 #'
+#' @param n_t Integer, number of target phenotypes (T-nodes) in the network. Default is 100
+#'
+#' @param n_v.t Numeric vector of the numbers of V-nodes per T-node, or a scalar for 
+#'   the average/fixed number. Default is 1
+#'
+#' @param family.n_v Distribution family for sampling the number of V-nodes per T-node 
+#'   when \code{n_v.t} should be treated as an average. Default is NULL (not yet implemented)
+#'
+#' @param conf.num.vec Named numeric vector specifying the numbers of different confounder 
+#'   types: W (intermediate variables), Z (common children), U (confounders), K (confounders 
+#'   with specific properties), and I (independent confounders). 
+#'   Default is c(W = 0, Z = 0, U = 200, K = 0, I = 100)
+#'
+#' @param graph_type Character, type of graph structure for T-nodes. One of "scale-free", 
+#'   "small-world", or "random graph". Ignored when \code{method} is supplied. 
+#'   Default is "scale-free"
+#'
+#' @param method Character, method for generating the random DAG, passed to 
+#'   \code{pcalg::randDAG}. One of "regular", "watts", "er", "power", "bipartite", 
+#'   "barabasi", "geometric", or "interEr". If missing, determined from \code{graph_type}
+#'
+#' @param degree Integer, average degree (number of connections) per node in the graph. 
+#'   Default is 3
+#'
+#' @param theta Numeric in (0, 1), minor allele frequency for simulating V-nodes (variants). 
+#'   Default is 0.4
+#'
+#' @param b0 Numeric, intercept/baseline value for simulating node values. Default is 0
+#'
+#' @param b.snp Numeric vector of length 2, range \code{c(min, max)} for effect sizes of 
+#'   V-nodes (SNPs/variants). Default is c(-0.5, 0.5)
+#'
+#' @param b.med Numeric vector of length 2, range \code{c(min, max)} for effect sizes of 
+#'   T-nodes (mediators/phenotypes). Default is c(-0.8, 0.8)
+#'
+#' @param sigma Numeric, standard deviation of random noise added to node values. Default is 0.1
+#'
+#' @param neg.freq Numeric in (0, 1), frequency of negative effects. Default is 0.5
+#'
+#' @param conf.coef.ranges Named list specifying ranges of coefficient values for different 
+#'   confounder types (W, Z, U, K). Each element should be a vector c(min, max). 
+#'   Default is list(W = c(0.15, 0.5), Z = c(1, 1.5), U = c(0.15, 0.5), K = c(0.15, 0.5))
+#'
+#' @param scale Logical, should simulated values be scaled to have marginal standard 
+#'   deviation equal to \code{sigma}? Default is FALSE
+#'
+#' @param sample.size Integer, number of samples (observations/individuals) to generate
+#'
 #' @param seed scalar integer, seed for reproducibility of random number generation.
+#'
+#' @return A list containing:
+#' \itemize{
+#'   \item \code{data}: A data frame with simulated values for all nodes
+#'   \item \code{dims}: A list with named counts of each node type (n_v, n_t, n_w, n_z, n_u, n_k, n_i)
+#'   \item \code{b0}: The baseline/intercept value used
+#'   \item \code{sigma}: The standard deviation used
+#'   \item \code{adjacency}: The adjacency matrix of the generated graph
+#'   \item \code{effects}: The effects adjacency matrix with coefficient values
+#'   \item \code{igraph}: An igraph object of the generated graph
+#' }
 #'
 #' @export sample.graph.data
 #'

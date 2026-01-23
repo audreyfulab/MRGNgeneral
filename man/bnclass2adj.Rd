@@ -6,6 +6,17 @@
 \usage{
 bnclass2adj(bnfit, pattern = "G", nodenames = NULL)
 }
+\arguments{
+\item{bnfit}{An object of class \code{bn} (e.g., from the \code{bnlearn} package)}
+
+\item{pattern}{Character string used as a prefix pattern in node names. Default is "G"}
+
+\item{nodenames}{Optional character vector of node names. If NULL (default),
+names are generated as pattern + node number (e.g., "G1", "G2", etc.)}
+}
+\value{
+An adjacency matrix with row and column names set to \code{nodenames}
+}
 \description{
 \code{bnclass2adj} converts a list of edges of a \code{bn} class object (e.g.
 from the package \code{bnlearn}) into an adjacency matrix.

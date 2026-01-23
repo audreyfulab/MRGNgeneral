@@ -44,6 +44,12 @@ intermediate variables/common children (\code{Q}-nodes), and confounders (\code{
 \item{data}{\code{data.frame} object with a random sample for each node in
 the network \code{adjacency} matrix to be used to describe the network.}
 
+\item{conf.sets}{An object of class \code{'conf.sets'} containing the selected
+confounders for each phenotype. See \link{get.conf.sets}}
+
+\item{inferred.adjacency}{Numeric (binary) matrix, the adjacency matrix of the
+inferred network to be evaluated}
+
 \item{number.parents, number.children, number.neighbors}{integer arguments used to define a hub. See \link{find.hubs}.}
 
 \item{only.T, all.conditions}{logical arguments used to define a hub. See \link{find.hubs}.}
@@ -72,6 +78,8 @@ allowed? Defaults to \code{TRUE}.}
 
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
 \link[parallel]{parLapply} (when supplied).}
+
+\item{...}{Additional arguments passed to \code{method} when \code{method} is a function}
 }
 \value{
 An object of class \code{'summary.hubs'} which is a list with the following elements:

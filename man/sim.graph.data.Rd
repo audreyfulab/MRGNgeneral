@@ -24,6 +24,43 @@ sim.graph.data(
   sample.size
 )
 }
+\arguments{
+\item{number.of.V}{Integer, number of genetic variants (V-nodes)}
+
+\item{number.of.T}{Integer, number of phenotypes (T-nodes)}
+
+\item{conf.num.vec}{Named numeric vector of confounder counts for types K, U, W, Z}
+
+\item{graph_type}{Character, type of graph structure. One of "scale-free", "small-world", or "random graph"}
+
+\item{method}{Character, method for generating the random DAG passed to \code{pcalg::randDAG}}
+
+\item{degree}{Integer, average node degree}
+
+\item{connection_prob}{Numeric, connection probability (not currently used)}
+
+\item{mixed}{Character, mixing type (not currently used)}
+
+\item{theta}{Numeric, minor allele frequency for V-nodes}
+
+\item{b0.1}{Numeric, baseline value}
+
+\item{b.snp}{Numeric, effect size for SNPs}
+
+\item{b.med}{Numeric, effect size for mediators}
+
+\item{sd.1}{Numeric, standard deviation for noise}
+
+\item{neg.freq}{Numeric in (0, 1), frequency of negative effects}
+
+\item{conf.coef.ranges}{Named list of coefficient ranges for confounder types}
+
+\item{sample.size}{Integer, number of samples to generate}
+}
+\value{
+A list containing simulated data, dimensions, and graph structure
+}
 \description{
-Description
+Generate simulated data from a directed acyclic graph (DAG) with
+genetic variants, phenotypes, and confounding variables.
 }

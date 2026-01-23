@@ -1,0 +1,13 @@
+* using log directory ‘/Users/id2207/Documents/GitHub/MRGNgeneral/..Rcheck’
+* using R Under development (unstable) (2026-01-20 r89309)
+* using platform: aarch64-apple-darwin23
+* R was compiled by
+    Apple clang version 17.0.0 (clang-1700.3.19.1)
+    GNU Fortran (GCC) 14.2.0
+* running under: macOS Sequoia 15.6
+* using session charset: UTF-8
+* using option ‘--as-cran’
+* checking for file ‘./DESCRIPTION’ ... OK
+* this is package ‘MRGNgeneral’ version ‘1.0.0’
+* package encoding: UTF-8
+* checking CRAN incoming feasibility ...

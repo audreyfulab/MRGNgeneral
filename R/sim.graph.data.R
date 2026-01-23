@@ -1,6 +1,26 @@
-#' Generate data from a DAG
+#' @name sim.graph.data
+#' @title Generate data from a DAG
+#' @description Generate simulated data from a directed acyclic graph (DAG) with
+#' genetic variants, phenotypes, and confounding variables.
 #'
-#' @description Description
+#' @param number.of.V Integer, number of genetic variants (V-nodes)
+#' @param number.of.T Integer, number of phenotypes (T-nodes)
+#' @param conf.num.vec Named numeric vector of confounder counts for types K, U, W, Z
+#' @param graph_type Character, type of graph structure. One of "scale-free", "small-world", or "random graph"
+#' @param method Character, method for generating the random DAG passed to \code{pcalg::randDAG}
+#' @param degree Integer, average node degree
+#' @param connection_prob Numeric, connection probability (not currently used)
+#' @param mixed Character, mixing type (not currently used)
+#' @param theta Numeric, minor allele frequency for V-nodes
+#' @param b0.1 Numeric, baseline value
+#' @param b.snp Numeric, effect size for SNPs
+#' @param b.med Numeric, effect size for mediators
+#' @param sd.1 Numeric, standard deviation for noise
+#' @param neg.freq Numeric in (0, 1), frequency of negative effects
+#' @param conf.coef.ranges Named list of coefficient ranges for confounder types
+#' @param sample.size Integer, number of samples to generate
+#'
+#' @return A list containing simulated data, dimensions, and graph structure
 #'
 #' @export sim.graph.data
 #'

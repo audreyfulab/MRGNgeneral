@@ -4,23 +4,26 @@ Version: 1.0.0
 Authors@R: c(
     person("Yong", "Bian",
            email = "id2207@wayne.edu",
-           role = c("aut", "cre"),
+           role = "aut",
            comment = c(ORCID = "0000-0002-0557-3145", email2 = "oliviabiany@hotmail.com")),
-    person("Chenangnon", "Tovissode", 
-           email = "ctovissode@uidaho.edu", 
+    person("Chenangnon", "Tovissode",
+           email = "ctovissode@uidaho.edu",
            role = "aut",
            comment = c(ORCID = "0000-0002-3685-3043")),
-    person("Audrey", "Fu", role = "aut"))
-Description: This package infers a genetic network using the MRGN general algorithm based on the principle of mendelian randomization.
+    person("Audrey", "Fu",
+           email = "audreyqyfu@gmail.com",
+           role = c("aut", "cre")))
+Description: Infers genetic networks using the MRGN general algorithm based
+    on the principle of Mendelian randomization.
 License: GPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 4.0.0)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-Date: 2023-11-20
+Date: 2026-01-22
 LazyData: true
 RdMacros: Rdpack
-Imports: graph, igraph, qvalue, ff, propagate, methods, Rdpack,
+Imports: graph, igraph, propagate, methods, Rdpack,
         parallel, ppcor, MRGN, pcalg, stringi, stringr
 Suggests: bnlearn
 NeedsCompilation: no
