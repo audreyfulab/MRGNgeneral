@@ -102,6 +102,7 @@ MRGNfit <- MRGN(data = net20data$data,
                 alpha = 0.01,
                 FDRcontrol = 'bonferroni',
                 fdr = 0.05,
+                use.perm = FALSE,
                 verbose = TRUE)
 
 
