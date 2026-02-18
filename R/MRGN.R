@@ -152,7 +152,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   adjacency, # a (n_t+n_v+n_q)-by-(n_t+n_v+n_q) adjacency matrix of an undirected acyclic graph (zeros on diagonal).
                   is.CNA = FALSE, # logical indicating if a genetic variant is a copy number alteration.
                   alpha = 0.01, # in (0, .5) type I error rate for individual tests, in the open (0, .5)
-                  use.perm = TRUE, # See infer.trio
+                  use.perm = FALSE, # See infer.trio
                   gamma = 0.05, #
                   nperms = 10000, #
                   FDRcontrol = c("bonferroni", "qvalue", "none"),
