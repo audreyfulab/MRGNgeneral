@@ -134,6 +134,8 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                     "pb12", "pb21","pb22","pV1:T1","pV1:T2", "Minor.freq")
 
            # Infer model structure (Second half trio analysis)
+           # Replace NAs in significance columns with FALSE to guard against class.vec NA crash
+           all.stats[, 1:6][is.na(all.stats[, 1:6])] <- FALSE
            all.stats$Inferred.Model <- c(matteApply(all.stats, MARGIN = 1, FUN = class.vec,
                                                     cl = cl, chunk.size = chunk.size))
 
@@ -164,6 +166,8 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                     "pb12", "pb21","pb22","pV1:T1","pV1:T2", "Minor.freq")
 
            # Infer model structure (Second half trio analysis)
+           # Replace NAs in significance columns with FALSE to guard against class.vec NA crash
+           all.stats[, 1:6][is.na(all.stats[, 1:6])] <- FALSE
            all.stats$Inferred.Model <- c(matteApply(all.stats, MARGIN = 1, FUN = class.vec,
                                                     cl = cl, chunk.size = chunk.size))
 
@@ -217,8 +221,8 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
   # All indices of variables in the trio (including counfounders)
   all_indices <- unique(c(col.indices, conf.set.trio))
 
-  # Call infer.trio
-  trio.res <- infer.trio(data[, all_indices],
+  # Call infer.trio (drop rows with any NA in this trio's columns)
+  trio.res <- infer.trio(na.omit(data[, all_indices]),
                          use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                          alpha = alpha, nperms = nperms, verbose = verbose)
 
@@ -232,8 +236,8 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
 ### Distinguish 'Other.1' and 'Other.2' trio structures
 class.other <- function (vec) {
   # Look at pb12 and pb22
-  if (any(vec[c(2,4)] == 1)) {
-    return("Other.1") # We keep an edge ("Other.1") if the partial correlation is significant
+  if (any(is.na(vec[c(2,4)])) || any(vec[c(2,4)] == 1)) {
+    return("Other.1") # We keep an edge ("Other.1") if the partial correlation is significant or undetermined (NA)
   }
   else {
     return("Other.2")
