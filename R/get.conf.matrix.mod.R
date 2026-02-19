@@ -84,9 +84,10 @@ get.conf.matrix <- function (data = NULL,
            if (is.null(conditional.vars)) {
              stop("conditional.vars is empty!")
            }
-           if (n1 < (cond.p)) {
-             stop(paste0("Cannot compute partial correlation test!: samples size = ",
-                         n1, "< ", ((cond.p) + 3), " Consider using measure = 'correlation' instead "))
+           if (n1 <= (cond.p + 3)) {
+             stop(paste0("Cannot compute partial correlation test: sample size (", n1,
+                         ") <= conditional variables + 3 (", cond.p + 3,
+                         "). Consider using 'selected V-nodes' or 'marginal correlation' instead."))
            }
            contains.nas = c(any(is.na(data)), any(is.na(cov.pool)),
                             any(is.na(conditional.vars)))
@@ -109,8 +110,10 @@ get.conf.matrix <- function (data = NULL,
              else {
                omit = which(apply(conditional.vars, 1, function(x) any(is.na(x))))
              }
-             if ((n1 - length(omit)) < (cond.p + 3)) {
-               stop("After omitting rows with missing values, sample size is too small to compute partial correlation test!...stopping")
+             if ((n1 - length(omit)) <= (cond.p + 3)) {
+               stop(paste0("After omitting rows with missing values, sample size (",
+                           n1 - length(omit), ") <= conditional variables + 3 (", cond.p + 3,
+                           "). Consider using 'selected V-nodes' or 'marginal correlation' instead."))
              }
              else {
                if (verbose) {
@@ -172,7 +175,7 @@ get.conf.matrix <- function (data = NULL,
     none = {
       qsig.mat = q.mat = matrix(NA, nrow = nrow(p.mat),
                                 ncol = ncol(p.mat))
-      sig.mat = apply(p.mat, 2, function(x) x < alpha)
+      sig.mat = p.mat < alpha
     }, stop(paste0("Input to argument 'adjust_by ' = ", adjust_by,
                    " is not recognized. use one of 'individual', ' all ', or 'none' ")))
     p.adj.mat = matrix(NA, nrow = nrow(p.mat), ncol = ncol(p.mat))
@@ -201,7 +204,7 @@ get.conf.matrix <- function (data = NULL,
            none = {
              p.adj.mat = q.mat = matrix(NA, nrow = nrow(p.mat),
                                         ncol = ncol(p.mat))
-             sig.mat = apply(p.mat, 2, function(x) x < alpha)
+             sig.mat = p.mat < alpha
            },
            stop(paste0("Input to argument 'adjust_by ' = ", adjust_by,
                        " is not recognized. use one of 'individual', ' all ', or 'none' ")))
@@ -240,7 +243,11 @@ compute.pairwise.pcors <-
     pcor.mat = #catch.conditions({
       matteApply(iterable, 1,
                  FUN = function(x, p, u, z) {
-                   ppcor::pcor(cbind(u[, x[1]], p[, x[2]], z))$estimate[1, 2]
+                   tryCatch(ppcor::pcor(cbind(u[, x[1]], p[, x[2]], z))$estimate[1, 2],
+                            error = function(e) {
+                              warning("pcor failed for pair (", x[1], ", ", x[2], "): ", e$message)
+                              NA
+                            })
                  },
                  p = data, u = confs, z = cond.vars,
                  cl = cl, chunk.size = chunk.size)
