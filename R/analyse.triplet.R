@@ -66,6 +66,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
            }
 
            model <- character(length = nb.triplets)
+           Qvalues$significant[is.na(Qvalues$significant)] <- FALSE # Treat NA as not rejected (inconclusive)
            if (any(Qvalues$significant))
              model[Qvalues$significant] <- "M2.1"
            if (any(!Qvalues$significant)) {
@@ -94,6 +95,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
            # Bonferroni correction
            p.adj <- stats::p.adjust(c(all.stats), method = FDRcontrol)
            rej <- p.adj <= fdr
+           rej[is.na(rej)] <- FALSE # Treat NA as not rejected (inconclusive)
            model <- character(length = nb.triplets)
            if (any(rej))
              model[rej] <- "M2.1"
