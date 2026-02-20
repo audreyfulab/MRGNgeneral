@@ -77,6 +77,12 @@
 #' @param verbose integer, verbosity level. 0 (default) for silent operation,
 #'   higher values for more detailed progress messages
 #'
+#' @param use_selected_V_for_WZ logical, should the union of V-nodes selected in
+#'   stage a (V-node selection) be used instead of all V-nodes when identifying
+#'   W,Z-nodes (stage d)? Defaults to \code{FALSE} (always use all V-nodes).
+#'   Set to \code{TRUE} for consistency with the fallback approach used in stages b
+#'   and c when sample size is small relative to the number of V-nodes.
+#'
 #' @param seed integer, random seed for reproducible results in parallel computing.
 #'   If NULL (default), no seed is set
 #' @param save.list (logical) if TRUE the output is saved as a \code{.RData}
@@ -256,6 +262,7 @@ get.conf.sets <- function (data,
                            cl = parallel::getDefaultCluster(),
                            chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                            verbose = 0,
+                           use_selected_V_for_WZ = FALSE, # Use union of selected V-nodes for W,Z identification (stage d)?
                            save.list = FALSE, # Only used if 'save.path' is not missing
                            save.path = "/path/to/save/location/",
                            seed = NULL) { # seed for reproducible results in parallel computing
@@ -890,10 +897,10 @@ get.conf.sets <- function (data,
       n_wz <- n_u <- 0
     }
     else {
-      ## Determine which V-nodes to use for W,Z identification
-      ## When sample size <= n_v + 3, use union of selected V-nodes for consistency with fallback approach
+      ## Determine which V-nodes to use for W,Z identification (stage d)
+      ## By default (use_selected_V_for_WZ = FALSE), always use all V-nodes.
+      ## When use_selected_V_for_WZ = TRUE, use union of selected V-nodes for consistency with stages b/c.
       n_samples <- NROW(data)
-      use_selected_V_for_WZ <- (n_v > 0) && (n_samples <= n_v + 3) && identical(C.measure, "partial")
 
       if (use_selected_V_for_WZ) {
         ## Use union of selected V-nodes
@@ -913,10 +920,9 @@ get.conf.sets <- function (data,
       if (verbose) {
         cat("        * selecting 'W,Z-nodes' using marginal correlations ... \n")
         if (use_selected_V_for_WZ && length(V_for_WZ) > 0) {
-          cat(paste0("            NOTE: Sample size (", n_samples,
-                     ") <= V-nodes + 3 (", n_v + 3,
-                     "). Using ", length(V_for_WZ),
-                     " unique selected V-nodes instead of all ", n_v, " V-nodes.\n"))
+          cat(paste0("            NOTE: Using ", length(V_for_WZ),
+                     " unique selected V-nodes instead of all ", n_v,
+                     " V-nodes for W,Z identification.\n"))
         }
       }
 
