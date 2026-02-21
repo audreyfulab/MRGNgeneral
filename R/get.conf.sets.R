@@ -1487,8 +1487,12 @@ get.conf.Tset <- function (data,
                                    chunk.size = chunk.size, cl = cl)
 
       ## Perform Pearson tests and extract p-values
+      ## S = conditioning set size per pair = n_v - N_Vi[T_j], where T_j is the row node
+      ## (pcorTTgivenVj conditions on setdiff(V.pool, V_j), size = n_v - N_Vi[j])
       pvalues <- numeric(length = NROW(xygrid)) + 1
-      pvalues[nonzero] <- p.from.parcor(r.mat[nonzero], n = n_samples, S = N_Vi)$pvalue
+      T_j_indices <- xygrid[nonzero, "x"] - n_v   # 1-based T-node index for each row node
+      S_vec <- n_v - N_Vi[T_j_indices]
+      pvalues[nonzero] <- p.from.parcor(r.mat[nonzero], n = n_samples, S = S_vec)$pvalue
 
       ## Reorganize into matrices
       r.mat <- matrix(r.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
