@@ -512,7 +512,7 @@ get.conf.sets <- function (data,
       }
     }
 
-    Tconfounders <- Traw$sig.asso.cov
+    Tconfounders <- Traw$sig.asso.covs
 
     # Add n_t + n_v to the column indices returned by 'get.conf.matrix' to indicate 'U-nodes' in data
     Tconfounders <- lapply(1:n_t,
@@ -901,6 +901,15 @@ get.conf.sets <- function (data,
       ## By default (use_selected_V_for_WZ = FALSE), always use all V-nodes.
       ## When use_selected_V_for_WZ = TRUE, use union of selected V-nodes for consistency with stages b/c.
       n_samples <- NROW(data)
+
+      ## Safe defaults: treat all UWZ nodes as U-nodes, no W,Z found.
+      ## Overwritten below when V_for_WZ is non-empty (the normal case).
+      ## Guards against the edge case where n_v = 0 and V_for_WZ ends up empty.
+      WZraw <- WZindices <- NULL
+      WZconfounders <- vector(mode = "list", length = n_v)
+      Uconfounders <- UWZconfounders
+      n_wz <- 0
+      n_u <- n_uwz
 
       if (use_selected_V_for_WZ) {
         ## Use union of selected V-nodes
