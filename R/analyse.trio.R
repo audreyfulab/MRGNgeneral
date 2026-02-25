@@ -110,18 +110,18 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                  }
                }
 
-               if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-                 Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]),
-                                                        fdr = fdr, lambda = 0.05,
-                                                        pi0.meth = pi0.meth))$value
-               }
+               #if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
+               #  Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]),
+               #                                         fdr = fdr, lambda = 0.05,
+               #                                         pi0.meth = pi0.meth))$value
+               #}
 
                if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
                  if (verbose) {
                    cat("            -- 'qvalue::qvalue' failed. q value correction skiped. \n")
                  }
-                 Qvalues <- list(qvalue = c(all.stats[,1:6]),
-                                 significant = c(all.stats[,1:6]) <= alpha)
+                 Qvalues <- list(qvalue = unlist(all.stats[,1:6]),
+                                 significant = unlist(all.stats[,1:6]) <= alpha)
                }
              }
            }
