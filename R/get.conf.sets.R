@@ -1350,7 +1350,7 @@ pcorTCwithFallback <- function(idx, T.pool, C.pool, V.pool, Vconfounders, data, 
   if (n_samples > length(V.pool) + 3) {
     mat <- na.omit(cbind(data[, t_col], data[, c_col], data[, V.pool]))
     if (nrow(mat) > length(V.pool) + 3) {
-      r <- ppcor::pcor(mat)$estimate[1, 2]
+      r <- max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2]))
       return(list(r = r, method = "all_V", n_cond = length(V.pool), n_used = nrow(mat)))
     }
   }
@@ -1361,7 +1361,7 @@ pcorTCwithFallback <- function(idx, T.pool, C.pool, V.pool, Vconfounders, data, 
   if (length(V_selected) > 0 && n_samples > length(V_selected) + 3) {
     mat <- na.omit(cbind(data[, t_col], data[, c_col], data[, V_selected]))
     if (nrow(mat) > length(V_selected) + 3) {
-      r <- ppcor::pcor(mat)$estimate[1, 2]
+      r <- max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2]))
       return(list(r = r, method = "selected_V", n_cond = length(V_selected), n_used = nrow(mat)))
     }
   }
