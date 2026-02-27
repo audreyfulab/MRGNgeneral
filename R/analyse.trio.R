@@ -84,34 +84,34 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
 
            # FDR control: apply qvalue correction
            if (is.null(lambda)) {
-             lambda <- seq(min(c(unlist(all.stats[,1:6]), lambda.step), na.rm = T),
-                           max(c(unlist(all.stats[,1:6]), lambda.step), na.rm = T), lambda.step)
+             lambda <- seq(min(c(as.vector(as.matrix(all.stats[, 1:6])), lambda.step), na.rm = T),
+                           max(c(as.vector(as.matrix(all.stats[, 1:6])), lambda.step), na.rm = T), lambda.step)
            }
 
-           Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]), fdr = fdr,
+           Qvalues <- catch.conditions (adjust.q (as.vector(as.matrix(all.stats[, 1:6])), fdr = fdr,
                                                   lambda = lambda, pi0.meth = pi0.meth))$value
            if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
              if (identical(pi0.meth, "smoother")) {
                if (verbose) {
                  cat("      #         * q value correction with 'pi0.meth = smoother' failled, trying 'pi0.meth = bootstrap'  \n")
                }
-               Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]), fdr = fdr,
+               Qvalues <- catch.conditions (adjust.q (as.vector(as.matrix(all.stats[, 1:6])), fdr = fdr,
                                                       lambda = lambda, pi0.meth = "bootstrap"))$value
              }
              if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
                if ((ll <- length(lambda)) > 1) {
-                 Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]),
+                 Qvalues <- catch.conditions (adjust.q (as.vector(as.matrix(all.stats[, 1:6])),
                                                         fdr = fdr, lambda = lambda[ll],
                                                         pi0.meth = pi0.meth))$value
                  if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-                   Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]),
+                   Qvalues <- catch.conditions (adjust.q (as.vector(as.matrix(all.stats[, 1:6])),
                                                           fdr = fdr, lambda = lambda[1],
                                                           pi0.meth = pi0.meth))$value
                  }
                }
 
                #if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-               #  Qvalues <- catch.conditions (adjust.q (unlist(all.stats[,1:6]),
+               #  Qvalues <- catch.conditions (adjust.q (as.vector(as.matrix(all.stats[, 1:6])),
                #                                         fdr = fdr, lambda = 0.05,
                #                                         pi0.meth = pi0.meth))$value
                #}
@@ -120,8 +120,8 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                  if (verbose) {
                    cat("            -- 'qvalue::qvalue' failed. q value correction skiped. \n")
                  }
-                 Qvalues <- list(qvalue = unlist(all.stats[,1:6]),
-                                 significant = unlist(all.stats[,1:6]) <= alpha)
+                 Qvalues <- list(qvalue = as.vector(as.matrix(all.stats[, 1:6])),
+                                 significant = as.vector(as.matrix(all.stats[, 1:6])) <= alpha)
                }
              }
            }
@@ -157,7 +157,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
            Inferred.Model0 <- all.stats[,8]
 
            # Bonferroni correction
-           p.adj <- stats::p.adjust(unlist(all.stats[,1:6]), method=FDRcontrol)
+           p.adj <- stats::p.adjust(as.vector(as.matrix(all.stats[, 1:6])), method=FDRcontrol)
            p.adj <- matrix(p.adj, nrow = nb.trios, byrow = FALSE)
            all.stats <- cbind(p.adj <= fdr, p.adj,
                               Minor.freq = all.stats[,7])
@@ -222,9 +222,17 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
   all_indices <- unique(c(col.indices, conf.set.trio))
 
   # Call infer.trio (drop rows with any NA in this trio's columns)
-  trio.res <- infer.trio(na.omit(data[, all_indices]),
-                         use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
-                         alpha = alpha, nperms = nperms, verbose = verbose)
+  trio.res <- tryCatch({
+    infer.trio(na.omit(data[, all_indices]),
+               use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
+               alpha = alpha, nperms = nperms, verbose = verbose)
+  }, error = function(e) {
+    out <- data.frame(matrix(NA_real_, nrow = 1L, ncol = 13L))
+    names(out) <- c("b11", "b12", "b21", "b22", "V1:T1", "V1:T2",
+                    "pb11", "pb12", "pb21", "pb22", "pV1:T1", "pV1:T2", "Minor.freq")
+    out$Inferred.Model <- NA_character_
+    out
+  })
 
   # If half1 = TRUE, only return the last 8 columns required to correct p-values  (and re-infer trio model)
   if (half1)
