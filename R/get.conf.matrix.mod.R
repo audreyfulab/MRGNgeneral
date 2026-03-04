@@ -74,7 +74,7 @@ get.conf.matrix <- function (data = NULL,
            }
            r.mat = propagate::bigcor(data, cov.pool, verbose = verbose,
                                       use = "pairwise.complete.obs", size = blocksize)
-           r.mat = t(as.matrix(r.mat[, ]))
+           r.mat = t(as.matrix(r.mat))
            p.mat = p.from.cor.mod (r.mat, n = sample.sizes)
          },
          partial_corr = {
