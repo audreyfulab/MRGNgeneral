@@ -188,7 +188,7 @@ is.conf.sets <- function(x) {
   nn <- sapply(x[c('Vconfounders', 'Tconfounders',
                         'Uconfounders', 'WZconfounders')],
                FUN = length)
-  n_t <- max(nn)
+  n_t <- max(nn[1:3])   # exclude WZconfounders (length = n_v) from the max
   yes <- all(nn[1:3] %in% c(0, n_t))
   if (!yes) {
     return(FALSE)
