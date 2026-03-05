@@ -111,9 +111,11 @@ get.initial.skeleton <- function (data,
 
   ### Absolute correlations
   MVTcor <- abs(MVTcor)
+  MVTcor[is.na(MVTcor)] <- 0   # replace NAs (e.g. from bigcor on constant cols) with 0
   TTMPcor <- pmax(abs(PTTcorGivenAllV),
                   abs(PTTcorGivenVTC),
-                  abs(MTTcor))
+                  abs(MTTcor),
+                  na.rm = TRUE)   # na.rm=TRUE: NA in Traw$cors (ppcor failure) falls back to MTTcor
 
   ### Number of selected W,Z nodes
   n_q <- if (!is.null(conf.sets)) length(conf.sets$WZindices) else 0
