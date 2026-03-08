@@ -256,7 +256,7 @@ get.conf.sets <- function (data,
                            T.filter = FALSE,
                            fdr = 0.05, # Only used if FDRcontrol = 'qvalue'
                            lambda = 0.05,
-                           pi0.method = c("smoother", "boostrap"),
+                           pi0.method = c("smoother", "bootstrap"),
                            alpha = 0.01, # Not used if FDRcontrol = 'qvalue'
                            parallel = FALSE,
                            cl = parallel::getDefaultCluster(),
@@ -294,6 +294,7 @@ get.conf.sets <- function (data,
                          measure = "correlation",
                          conditional.vars = NULL,
                          blocksize = blocksize,
+                         FDRcontrol = V.FDRcontrol,
                          selection_fdr = fdr,
                          adjust_by = V.adjust_by,
                          apply.qval = V.apply.qval,
@@ -326,6 +327,7 @@ get.conf.sets <- function (data,
                              measure = "correlation",
                              conditional.vars = NULL,
                              blocksize = blocksize,
+                             FDRcontrol = V.FDRcontrol,
                              selection_fdr = fdr,
                              adjust_by = V.adjust_by,
                              apply.qval = V.apply.qval,
@@ -444,10 +446,6 @@ get.conf.sets <- function (data,
       }
     }
     else {
-      if (verbose) {
-        cat("\n        * selecting 'T-nodes' using marginal correlations ... \n")
-      }
-
       ### Call 'get.conf.matrix' on 'T.pool'
       Traw <- catch.conditions({
         get.conf.matrix (data = data[, T.pool, drop = FALSE],
@@ -455,6 +453,7 @@ get.conf.sets <- function (data,
                          measure = "correlation",
                          conditional.vars = NULL,
                          blocksize = blocksize,
+                         FDRcontrol = T.FDRcontrol,
                          selection_fdr = fdr,
                          adjust_by = T.adjust_by,
                          apply.qval = T.apply.qval,
@@ -487,6 +486,7 @@ get.conf.sets <- function (data,
                              measure = "correlation",
                              conditional.vars = NULL,
                              blocksize = blocksize,
+                             FDRcontrol = T.FDRcontrol,
                              selection_fdr = fdr,
                              adjust_by = T.adjust_by,
                              apply.qval = T.apply.qval,
@@ -514,7 +514,6 @@ get.conf.sets <- function (data,
 
     Tconfounders <- Traw$sig.asso.covs
 
-    # Add n_t + n_v to the column indices returned by 'get.conf.matrix' to indicate 'U-nodes' in data
     Tconfounders <- lapply(1:n_t,
                            FUN = function(j) {
                              x <- Tconfounders[[j]]
@@ -749,6 +748,7 @@ get.conf.sets <- function (data,
                             measure = "partial_corr",
                             conditional.vars = data[, V.pool, drop = FALSE],
                             blocksize = blocksize,
+                            FDRcontrol = C.FDRcontrol,
                             selection_fdr = fdr,
                             adjust_by = C.adjust_by,
                             apply.qval = C.apply.qval,
@@ -781,6 +781,7 @@ get.conf.sets <- function (data,
                                 measure = "partial_corr",
                                 conditional.vars = data[, V.pool, drop = FALSE],
                                 blocksize = blocksize,
+                                FDRcontrol = C.FDRcontrol,
                                 selection_fdr = fdr,
                                 adjust_by = C.adjust_by,
                                 apply.qval = C.apply.qval,
@@ -820,6 +821,7 @@ get.conf.sets <- function (data,
                           measure = "correlation",
                           conditional.vars = NULL,
                           blocksize = blocksize,
+                          FDRcontrol = C.FDRcontrol,
                           selection_fdr = fdr,
                           adjust_by = C.adjust_by,
                           apply.qval = C.apply.qval,
@@ -844,6 +846,7 @@ get.conf.sets <- function (data,
                               measure = "correlation",
                               conditional.vars = NULL,
                               blocksize = blocksize,
+                              FDRcontrol = C.FDRcontrol,
                               selection_fdr = fdr,
                               adjust_by = C.adjust_by,
                               apply.qval = C.apply.qval,
@@ -944,6 +947,7 @@ get.conf.sets <- function (data,
                            measure = "correlation",
                            conditional.vars = NULL,
                            blocksize = blocksize,
+                           FDRcontrol = Q.FDRcontrol,
                            selection_fdr = fdr,
                            adjust_by = Q.adjust_by,
                            apply.qval = Q.apply.qval,
@@ -976,6 +980,7 @@ get.conf.sets <- function (data,
                                measure = "correlation",
                                conditional.vars = NULL,
                                blocksize = blocksize,
+                               FDRcontrol = Q.FDRcontrol,
                                selection_fdr = fdr,
                                adjust_by = Q.adjust_by,
                                apply.qval = Q.apply.qval,
@@ -1050,7 +1055,7 @@ get.conf.sets <- function (data,
   ### Names/labels for V and T-nodes
   nm.variants <- colnames(data[, V.pool, drop = FALSE])
   if (is.null(nm.variants))
-    nm.variants <- paste0("V", 1:length(V.pool))
+    nm.variants <- paste0("V", seq_len(length(V.pool)))
 
   nm.genes <- colnames(data[, T.pool, drop = FALSE])
   if (is.null(nm.genes))
@@ -1221,12 +1226,12 @@ check.get.conf.sets.args <- function () {
     stopifnot(T.measure %in% c("marginal", "partial"))
     T.measure <- T.measure[1]
 
-    stopifnot(pi0.method %in% c("smoother", "boostrap"))
+    stopifnot(pi0.method %in% c("smoother", "bootstrap"))
     pi0.method <- pi0.method[1]
 
     # Adjust blocksize to avoid bigcor errors (only when user explicitly provided it)
     if (!missing(blocksize))
-      blocksize <- min(blocksize, n_t, n_v)
+      blocksize <- min(blocksize, n_t, if (n_v > 0) n_v else n_t)
 
     # Parallelize computations or not?
     stopifnot(is.logical(parallel))
@@ -1728,7 +1733,7 @@ pcorTTgivenV <- function (jk, V.pool, data) {
 # Get T-T partial correlation given selected V-nodes
 pcorTTgivenVj <- function (jk, V.pool, Vset, data, n_v) {
 
-  Vjk <- setdiff(V.pool, Vset[[jk[1] - n_v]]) # Remove V-nodes selected for Tk from the pool of V-nodes
+  Vjk <- setdiff(V.pool, Vset[[jk[1] - n_v]])
 
   tryCatch({
     mat <- na.omit(cbind(data[, c(jk, Vjk)]))
