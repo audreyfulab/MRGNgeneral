@@ -23,7 +23,7 @@ RoxygenNote: 7.3.3
 Date: 2026-01-22
 LazyData: true
 RdMacros: Rdpack
-Imports: graph, igraph, propagate, methods, Rdpack,
+Imports: graph, igraph, propagate, hdf5r, methods, Rdpack,
         parallel, ppcor, MRGN, pcalg, stringi, stringr
 Suggests: bnlearn
 NeedsCompilation: no
