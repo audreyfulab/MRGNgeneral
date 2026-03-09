@@ -72,9 +72,12 @@ get.conf.matrix <- function (data = NULL,
                           ncol(data), " x ", ncol(cov.pool), " using ", ceiling(dim(data)[2]/blocksize),
                           " blocks"))
            }
-           r.mat = propagate::bigcor(data, cov.pool, verbose = verbose,
-                                      use = "pairwise.complete.obs", size = blocksize)
-           r.mat = t(as.matrix(r.mat[, ]))
+           h5_file <- propagate::bigcor(data, cov.pool, verbose = verbose,
+                                        use = "pairwise.complete.obs", size = blocksize)
+           on.exit(if (file.exists(h5_file)) unlink(h5_file), add = TRUE)
+           h5f <- hdf5r::H5File$new(h5_file, mode = "r")
+           r.mat <- t(h5f[["matrix"]][,])
+           h5f$close_all()
            p.mat = p.from.cor.mod (r.mat, n = sample.sizes)
          },
          partial_corr = {
