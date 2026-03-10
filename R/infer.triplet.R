@@ -14,7 +14,7 @@ infer.triplet <- function (data,
   pval <- coefs$`Pr(>|t|)`[2]
   if (half1)
     return(pval)
-  rej <- pval < alpha
+  rej <- !is.na(pval) && pval < alpha
   model <- if (rej) {"M2.1"}
   else {
     if (type == 2) {"M1.1"}
