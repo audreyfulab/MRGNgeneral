@@ -242,7 +242,7 @@ get.conf.sets <- function (data,
                            skip.C = FALSE,
                            T.measure = c("partial", "marginal"), # Selection measure
                            C.measure = T.measure,
-                           blocksize = 100,
+                           blocksize = 10,
                            FDRcontrol = c("qvalue", "bonferroni", "none"),
                            V.FDRcontrol = FDRcontrol,
                            T.FDRcontrol = FDRcontrol,
@@ -315,7 +315,7 @@ get.conf.sets <- function (data,
         }
 
         # Change pi0.method to 'bootstrap' if it was 'smoother' and 'get.conf.matrix' failed
-        if (identical(pi0.method, "smoother")) {
+        if (V.apply.qval && identical(pi0.method, "smoother")) {
           if (verbose) {
             print(Vraw)
             cat("\n pi0.meth = 'smoother' failed, trying pi0.meth = 'bootstrap' \n")
@@ -389,7 +389,6 @@ get.conf.sets <- function (data,
                        lambda = lambda,
                        pi0.method = pi0.method,
                        alpha = alpha,
-                       parallel = parallel,
                        cl = cl,
                        chunk.size = chunk.size,
                        verbose = max(0, verbose - 1))
@@ -405,7 +404,7 @@ get.conf.sets <- function (data,
         }
 
         # Change pi0.method to 'bootstrap' if it was 'smoother' and 'get.conf.matrix' failed
-        if (identical(pi0.method, "smoother")) {
+        if (T.apply.qval && identical(pi0.method, "smoother")) {
           if (verbose) {
             print(Traw)
             cat("\n pi0.meth = 'smoother' failed, trying pi0.meth = 'bootstrap' \n")
@@ -425,7 +424,6 @@ get.conf.sets <- function (data,
                            lambda = lambda,
                            pi0.method = "bootstrap",
                            alpha = alpha,
-                           parallel = parallel,
                            cl = cl,
                            chunk.size = chunk.size,
                            verbose = max(0, verbose - 1))
@@ -474,7 +472,7 @@ get.conf.sets <- function (data,
         }
 
         # Change pi0.method to 'bootstrap' if it was 'smoother' and 'get.conf.matrix' failed
-        if (identical(pi0.method, "smoother")) {
+        if (T.apply.qval && identical(pi0.method, "smoother")) {
           if (verbose) {
             print(Traw)
             cat("\n pi0.meth = 'smoother' failed, trying pi0.meth = 'bootstrap' \n")
@@ -548,9 +546,6 @@ get.conf.sets <- function (data,
       ## Sample size
       n_samples <- NROW(data)
 
-      ## Check if we need fallback approach
-      use_C_fallback <- (n_v > 0) && (n_samples <= n_v + 3) && identical(C.measure, "partial")
-
       if (verbose) {
         cat(paste0("\n        * selecting 'U,W,Z-nodes' using ",
                    if (n_v > 0 & identical(C.measure, "partial")) 'partial' else 'marginal',
@@ -559,255 +554,187 @@ get.conf.sets <- function (data,
 
       if (n_v > 0 & identical(C.measure, "partial")) {
 
-        if (use_C_fallback) {
-          ## Use fallback approach
-          if (verbose) {
-            cat(paste0("            NOTE: Sample size (", n_samples,
-                       ") <= V-nodes + 3 (", n_v + 3,
-                       "). Using selected V-nodes instead of all V-nodes for T-C partial correlations.\n"))
+        ## Per-pair partial correlation with cascading fallback:
+        ## (1) all V-nodes -> (2) selected V-nodes for this T -> (3) marginal
+
+        ## Create grid of T-C pairs
+        iterable <- expand.grid(T_idx = 1:n_t, C_idx = 1:n_c)
+
+        ## Compute correlations; fallback logic is handled inside pcorTCwithFallback
+        results <- matteApply(X = iterable,
+                              MARGIN = 1,
+                              FUN = pcorTCwithFallback,
+                              T.pool = T.pool,
+                              C.pool = C.pool,
+                              V.pool = V.pool,
+                              Vconfounders = Vconfounders,
+                              data = data,
+                              n_samples = n_samples,
+                              simplify = FALSE,
+                              cl = cl, chunk.size = chunk.size)
+
+        ## Extract correlations, methods, and conditioning set sizes
+        r_vec <- sapply(results, function(x) x$r)
+        methods_used <- sapply(results, function(x) x$method)
+        n_cond_vec <- sapply(results, function(x) x$n_cond)
+        n_used_vec <- sapply(results, function(x) x$n_used)
+
+        ## Report method usage
+        if (verbose) {
+          method_counts <- table(methods_used)
+          cat("            Method usage for T-C partial correlations:\n")
+          cat(paste0("              Sample size: ", n_samples,
+                     " | threshold (n_v + 3): ", n_v + 3,
+                     " | small sample: ", if (n_samples <= n_v + 3) "YES" else "NO", "\n"))
+          for (m in names(method_counts)) {
+            pct <- round(100 * method_counts[m] / length(methods_used), 1)
+            cat(paste0("              - ", m, ": ", method_counts[m], " pairs (", pct, "%)\n"))
           }
-
-          ## Create grid of T-C pairs
-          iterable <- expand.grid(T_idx = 1:n_t, C_idx = 1:n_c)
-
-          ## Compute correlations with fallback
-          results <- matteApply(X = iterable,
-                                MARGIN = 1,
-                                FUN = pcorTCwithFallback,
-                                T.pool = T.pool,
-                                C.pool = C.pool,
-                                V.pool = V.pool,
-                                Vconfounders = Vconfounders,
-                                data = data,
-                                n_samples = n_samples,
-                                simplify = FALSE,
-                                cl = cl, chunk.size = chunk.size)
-
-          ## Extract correlations, methods, and conditioning set sizes
-          r_vec <- sapply(results, function(x) x$r)
-          methods_used <- sapply(results, function(x) x$method)
-          n_cond_vec <- sapply(results, function(x) x$n_cond)
-          n_used_vec <- sapply(results, function(x) x$n_used)
-
-          ## Report method usage
-          if (verbose) {
-            method_counts <- table(methods_used)
-            cat("            Method usage for T-C partial correlations:\n")
-            for (m in names(method_counts)) {
-              pct <- round(100 * method_counts[m] / length(methods_used), 1)
-              cat(paste0("              - ", m, ": ", method_counts[m], " pairs (", pct, "%)\n"))
-            }
+          if (all(methods_used == "marginal")) {
+            cat("              NOTE: all pairs cascaded to marginal correlation.\n")
           }
+        }
 
-          ## Compute p-values based on method used
-          p_vec <- mapply(function(r, nc, method, nu) {
-            if (method == "marginal") {
-              ## t-test for marginal correlation
-              if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
-              t_stat <- r * sqrt((nu - 2) / (1 - r^2))
-              2 * (1 - pt(abs(t_stat), df = nu - 2))
-            } else {
-              ## z-test for partial correlation
-              if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
-              z <- (sqrt(nu - nc - 3) / 2) * log((1 + r) / (1 - r))
-              2 * (1 - pnorm(abs(z)))
-            }
-          }, r_vec, n_cond_vec, methods_used, n_used_vec)
-
-          ## Reshape to matrices: expand.grid gives T_idx varying fastest
-          ## Result is n_t rows x n_c cols, need to transpose to n_c x n_t
-          r.mat <- matrix(r_vec, nrow = n_t, ncol = n_c, byrow = FALSE)
-          p.mat <- matrix(p_vec, nrow = n_t, ncol = n_c, byrow = FALSE)
-          r.mat <- t(r.mat)  # n_c x n_t (covariates as rows, T-nodes as columns)
-          p.mat <- t(p.mat)  # n_c x n_t
-
-          ## Apply FDR control
-          if (verbose) {
-            if (C.apply.qval) {
-              cat(paste0("            applying qvalue correction to control the FDR at ", fdr, "\n"))
-            } else if (C.adjust_by != "none") {
-              cat(paste0("            applying ", C.FDRcontrol, " correction with threshold ", alpha, "\n"))
-            }
+        ## Compute p-values based on method used
+        p_vec <- mapply(function(r, nc, method, nu) {
+          if (method == "marginal") {
+            ## t-test for marginal correlation
+            if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
+            t_stat <- r * sqrt((nu - 2) / (1 - r^2))
+            2 * (1 - pt(abs(t_stat), df = nu - 2))
+          } else {
+            ## z-test for partial correlation
+            if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
+            z <- (sqrt(nu - nc - 3) / 2) * log((1 + r) / (1 - r))
+            2 * (1 - pnorm(abs(z)))
           }
+        }, r_vec, n_cond_vec, methods_used, n_used_vec)
 
+        ## Reshape to matrices: expand.grid gives T_idx varying fastest
+        ## Result is n_t rows x n_c cols, need to transpose to n_c x n_t
+        r.mat <- matrix(r_vec, nrow = n_t, ncol = n_c, byrow = FALSE)
+        p.mat <- matrix(p_vec, nrow = n_t, ncol = n_c, byrow = FALSE)
+        r.mat <- t(r.mat)  # n_c x n_t (covariates as rows, T-nodes as columns)
+        p.mat <- t(p.mat)  # n_c x n_t
+
+        ## Apply FDR control
+        if (verbose) {
           if (C.apply.qval) {
-            ## qvalue correction with smoother -> bootstrap retry
-            switch(C.adjust_by,
-                   individual = {
+            cat(paste0("            applying qvalue correction to control the FDR at ", fdr, "\n"))
+          } else if (C.adjust_by != "none") {
+            cat(paste0("            applying ", C.FDRcontrol, " correction with threshold ", alpha, "\n"))
+          }
+        }
+
+        if (C.apply.qval) {
+          ## qvalue correction with smoother -> bootstrap retry
+          switch(C.adjust_by,
+                 individual = {
+                   qsig.list <- catch.conditions({
+                     apply(p.mat, MARGIN = 2,
+                           FUN = adjust.q,
+                           fdr = fdr,
+                           lambda = lambda,
+                           pi0.meth = pi0.method)
+                   })$value
+
+                   ## Retry with bootstrap if smoother failed
+                   if (any(class(qsig.list) %in% c("simpleError", "error", "condition")) &&
+                       identical(pi0.method, "smoother")) {
+                     if (verbose)
+                       cat("            pi0.meth = 'smoother' failed for T-C qvalue, trying 'bootstrap'\n")
                      qsig.list <- catch.conditions({
                        apply(p.mat, MARGIN = 2,
                              FUN = adjust.q,
                              fdr = fdr,
                              lambda = lambda,
-                             pi0.meth = pi0.method)
+                             pi0.meth = "bootstrap")
                      })$value
+                   }
 
-                     ## Retry with bootstrap if smoother failed
-                     if (any(class(qsig.list) %in% c("simpleError", "error", "condition")) &&
-                         identical(pi0.method, "smoother")) {
-                       if (verbose)
-                         cat("            pi0.meth = 'smoother' failed for T-C qvalue, trying 'bootstrap'\n")
-                       qsig.list <- catch.conditions({
-                         apply(p.mat, MARGIN = 2,
-                               FUN = adjust.q,
-                               fdr = fdr,
-                               lambda = lambda,
-                               pi0.meth = "bootstrap")
-                       })$value
-                     }
+                   ## Extract results or fall back to alpha threshold
+                   if (any(class(qsig.list) %in% c("simpleError", "error", "condition"))) {
+                     if (verbose)
+                       cat("            qvalue correction failed, falling back to raw p-values with alpha threshold\n")
+                     sig.mat <- p.mat <= alpha
+                     q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
+                   } else {
+                     sig.mat <- sapply(qsig.list, FUN = function(x) x$significant)
+                     q.mat <- sapply(qsig.list, function(x) x$qvalue)
+                   }
+                 },
+                 all = {
+                   qsig.all <- catch.conditions({
+                     adjust.q(as.vector(p.mat),
+                              fdr = fdr,
+                              lambda = lambda,
+                              pi0.meth = pi0.method)
+                   })$value
 
-                     ## Extract results or fall back to alpha threshold
-                     if (any(class(qsig.list) %in% c("simpleError", "error", "condition"))) {
-                       if (verbose)
-                         cat("            qvalue correction failed, falling back to raw p-values with alpha threshold\n")
-                       sig.mat <- p.mat <= alpha
-                       q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
-                     } else {
-                       sig.mat <- sapply(qsig.list, FUN = function(x) x$significant)
-                       q.mat <- sapply(qsig.list, function(x) x$qvalue)
-                     }
-                   },
-                   all = {
+                   ## Retry with bootstrap if smoother failed
+                   if (any(class(qsig.all) %in% c("simpleError", "error", "condition")) &&
+                       identical(pi0.method, "smoother")) {
+                     if (verbose)
+                       cat("            pi0.meth = 'smoother' failed for T-C qvalue, trying 'bootstrap'\n")
                      qsig.all <- catch.conditions({
                        adjust.q(as.vector(p.mat),
                                 fdr = fdr,
                                 lambda = lambda,
-                                pi0.meth = pi0.method)
+                                pi0.meth = "bootstrap")
                      })$value
+                   }
 
-                     ## Retry with bootstrap if smoother failed
-                     if (any(class(qsig.all) %in% c("simpleError", "error", "condition")) &&
-                         identical(pi0.method, "smoother")) {
-                       if (verbose)
-                         cat("            pi0.meth = 'smoother' failed for T-C qvalue, trying 'bootstrap'\n")
-                       qsig.all <- catch.conditions({
-                         adjust.q(as.vector(p.mat),
-                                  fdr = fdr,
-                                  lambda = lambda,
-                                  pi0.meth = "bootstrap")
-                       })$value
-                     }
-
-                     ## Extract results or fall back to alpha threshold
-                     if (any(class(qsig.all) %in% c("simpleError", "error", "condition"))) {
-                       if (verbose)
-                         cat("            qvalue correction failed, falling back to raw p-values with alpha threshold\n")
-                       sig.mat <- p.mat <= alpha
-                       q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
-                     } else {
-                       sig.mat <- matrix(qsig.all$significant, nrow = n_c, ncol = n_t, byrow = FALSE)
-                       q.mat <- matrix(qsig.all$qvalue, nrow = n_c, ncol = n_t, byrow = FALSE)
-                     }
-                   },
-                   none = {
-                     q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
+                   ## Extract results or fall back to alpha threshold
+                   if (any(class(qsig.all) %in% c("simpleError", "error", "condition"))) {
+                     if (verbose)
+                       cat("            qvalue correction failed, falling back to raw p-values with alpha threshold\n")
                      sig.mat <- p.mat <= alpha
-                   })
-            p.adj.mat <- matrix(NA, nrow = n_c, ncol = n_t)
-          }
-          else {
-            ## Bonferroni or other methods
-            switch(C.adjust_by,
-                   individual = {
-                     p.adj.mat <- apply(p.mat, MARGIN = 2,
-                                        FUN = stats::p.adjust,
-                                        method = C.FDRcontrol)
-                     sig.mat <- p.adj.mat <= alpha
                      q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
-                   },
-                   all = {
-                     p.adj.mat <- matrix(stats::p.adjust(as.vector(p.mat), method = C.FDRcontrol),
-                                         nrow = n_c, ncol = n_t, byrow = FALSE)
-                     sig.mat <- p.adj.mat <= alpha
-                     q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
-                   },
-                   none = {
-                     p.adj.mat <- q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
-                     sig.mat <- p.mat <= alpha
-                   })
-          }
-
-          ## Extract significant covariates for each T-node
-          sig.asso.covs <- lapply(1:n_t, FUN = function(j) {
-            which(sig.mat[, j])
-          })
-
-          ## Create UWZraw structure for compatibility
-          UWZraw <- list(sig.asso.covs = sig.asso.covs,
-                         pvalues = p.mat,
-                         qvalues = q.mat,
-                         cors = r.mat,
-                         sig = sig.mat,
-                         adj.p = p.adj.mat)
+                   } else {
+                     sig.mat <- matrix(qsig.all$significant, nrow = n_c, ncol = n_t, byrow = FALSE)
+                     q.mat <- matrix(qsig.all$qvalue, nrow = n_c, ncol = n_t, byrow = FALSE)
+                   }
+                 },
+                 none = {
+                   q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
+                   sig.mat <- p.mat <= alpha
+                 })
+          p.adj.mat <- matrix(NA, nrow = n_c, ncol = n_t)
         }
         else {
-          ## Original approach: use get.conf.matrix with all V-nodes
-          UWZraw <- catch.conditions({
-            get.conf.matrix(data = data[, T.pool, drop = FALSE],
-                            cov.pool = data[, C.pool, drop = FALSE],
-                            measure = "partial_corr",
-                            conditional.vars = data[, V.pool, drop = FALSE],
-                            blocksize = blocksize,
-                            FDRcontrol = C.FDRcontrol,
-                            selection_fdr = fdr,
-                            adjust_by = C.adjust_by,
-                            apply.qval = C.apply.qval,
-                            lambda = lambda,
-                            pi0.method = pi0.method,
-                            alpha = alpha,
-                            verbose = max(0, verbose - 1),
-                            cl = cl, chunk.size = chunk.size)
-          })$value
-
-          ## Check the result: error or not?
-          if (any(class(UWZraw) %in% c("simpleError", "error", "condition"))) {
-            if (identical(UWZraw$message, "wrong sign in 'by' argument")) {
-              if (verbose) {
-                print(UWZraw$message)
-                cat("\n 'get.conf.matrix' failled ...  \n")
-              }
-            }
-
-            # Change pi0.method to 'bootstrap' if it was 'smoother' and 'get.conf.matrix' failed
-            if (identical(pi0.method, "smoother")) {
-              if (verbose) {
-                print(UWZraw)
-                cat("\n pi0.meth = 'smoother' failed, trying pi0.meth = 'bootstrap' \n")
-              }
-
-              UWZraw <- catch.conditions({
-                get.conf.matrix(data = data[, T.pool, drop = FALSE],
-                                cov.pool = data[, C.pool, drop = FALSE],
-                                measure = "partial_corr",
-                                conditional.vars = data[, V.pool, drop = FALSE],
-                                blocksize = blocksize,
-                                FDRcontrol = C.FDRcontrol,
-                                selection_fdr = fdr,
-                                adjust_by = C.adjust_by,
-                                apply.qval = C.apply.qval,
-                                lambda = lambda,
-                                pi0.method = "bootstrap",
-                                alpha = alpha,
-                                verbose = max(0, verbose - 1),
-                                cl = cl, chunk.size = chunk.size)
-              })$value
-
-              ## Return an empty n_t list if 'bootstrap' method also failed
-              if (any(class(UWZraw) %in% c("simpleError", "error", "condition"))) {
-
-                UWZraw$sig.asso.covs <- vector(mode = "list", length = n_t)
-
-              }
-
-            }
-            else {
-
-              # Return an empty n_t list
-              UWZraw$sig.asso.covs <- vector(mode = "list", length = n_t)
-
-            }
-          }
+          ## Bonferroni or other methods
+          switch(C.adjust_by,
+                 individual = {
+                   p.adj.mat <- apply(p.mat, MARGIN = 2,
+                                      FUN = stats::p.adjust,
+                                      method = C.FDRcontrol)
+                   sig.mat <- p.adj.mat <= alpha
+                   q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
+                 },
+                 all = {
+                   p.adj.mat <- matrix(stats::p.adjust(as.vector(p.mat), method = C.FDRcontrol),
+                                       nrow = n_c, ncol = n_t, byrow = FALSE)
+                   sig.mat <- p.adj.mat <= alpha
+                   q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
+                 },
+                 none = {
+                   p.adj.mat <- q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
+                   sig.mat <- p.mat <= alpha
+                 })
         }
+
+        ## Extract significant covariates for each T-node
+        sig.asso.covs <- lapply(1:n_t, FUN = function(j) {
+          which(sig.mat[, j])
+        })
+
+        ## Create UWZraw structure for compatibility
+        UWZraw <- list(sig.asso.covs = sig.asso.covs,
+                       pvalues = p.mat,
+                       qvalues = q.mat,
+                       cors = r.mat,
+                       sig = sig.mat,
+                       adj.p = p.adj.mat)
       }
       else {
         ## Marginal correlation path
@@ -968,7 +895,7 @@ get.conf.sets <- function (data,
           }
 
           # Change pi0.method to 'bootstrap' if it was 'smoother' and 'get.conf.matrix' failed
-          if (identical(pi0.method, "smoother")) {
+          if (Q.apply.qval && identical(pi0.method, "smoother")) {
             if (verbose) {
               print(WZraw)
               cat("\n pi0.meth = 'smoother' failed, trying pi0.meth = 'bootstrap' \n")
@@ -1136,6 +1063,39 @@ check.get.conf.sets.args <- function () {
     stopifnot(Q.FDRcontrol %in% c("none", "qvalue", p.adjust.methods))
     Q.apply.qval <- (Q.FDRcontrol == "qvalue") & (Q.adjust_by != "none")
 
+    ### Check for contradictory FDRcontrol + adjust_by = "none" combinations
+    fdr_none_conflicts <- c(
+      if (V.FDRcontrol != "none" && V.adjust_by == "none") "V (V.FDRcontrol / V.adjust_by)" else NULL,
+      if (T.FDRcontrol != "none" && T.adjust_by == "none") "T (T.FDRcontrol / T.adjust_by)" else NULL,
+      if (C.FDRcontrol != "none" && C.adjust_by == "none") "C (C.FDRcontrol / C.adjust_by)" else NULL,
+      if (Q.FDRcontrol != "none" && Q.adjust_by == "none") "Q (Q.FDRcontrol / Q.adjust_by)" else NULL
+    )
+    if (length(fdr_none_conflicts) > 0) {
+      stop(paste0(
+        "Contradictory FDR control settings detected for stage(s): ",
+        paste(fdr_none_conflicts, collapse = ", "), ". ",
+        "Setting adjust_by = 'none' with any FDRcontrol method other than 'none' is invalid: ",
+        "the correction method would be silently ignored and raw p-values used instead. ",
+        "Either set FDRcontrol = 'none', or set adjust_by to 'individual' or 'all'."
+      ))
+    }
+
+    ### Warn if FDRcontrol = "none" but adjust_by is non-trivially set
+    none_fdr_with_adjust <- c(
+      if (V.FDRcontrol == "none" && V.adjust_by != "none") "V (V.adjust_by)" else NULL,
+      if (T.FDRcontrol == "none" && T.adjust_by != "none") "T (T.adjust_by)" else NULL,
+      if (C.FDRcontrol == "none" && C.adjust_by != "none") "C (C.adjust_by)" else NULL,
+      if (Q.FDRcontrol == "none" && Q.adjust_by != "none") "Q (Q.adjust_by)" else NULL
+    )
+    if (length(none_fdr_with_adjust) > 0) {
+      warning(paste0(
+        "adjust_by is set but will be ignored for stage(s): ",
+        paste(none_fdr_with_adjust, collapse = ", "), ". ",
+        "When FDRcontrol = 'none', no correction is applied regardless of adjust_by; ",
+        "raw p-values are compared directly against alpha."
+      ))
+    }
+
     T.filter <- as.logical(T.filter)
     T.filter <- T.filter[1]
     stopifnot(is.logical(T.filter))
@@ -1294,7 +1254,7 @@ get.candidate.pools <- function () {
 #' @param n_v number of V-nodes
 #' @param n_samples sample size
 #' @return list with r (correlation), method used, and n_cond (number of conditioning variables)
-pcorTTwithFallback <- function(jk, V.pool, Vconfounders, data, n_v, n_samples) {
+pcorTTsymmetric <- function(jk, V.pool, Vconfounders, data, n_v, n_samples) {
 
   # Get indices in Vconfounders list (T-nodes are indexed after V-nodes)
   i_idx <- jk[1] - n_v
@@ -1304,8 +1264,9 @@ pcorTTwithFallback <- function(jk, V.pool, Vconfounders, data, n_v, n_samples) {
   if (n_samples > length(V.pool) + 3) {
     mat <- na.omit(cbind(data[, c(jk, V.pool)]))
     if (nrow(mat) > length(V.pool) + 3) {
-      r <- ppcor::pcor(mat)$estimate[1, 2]
-      return(list(r = r, method = "all_V", n_cond = length(V.pool), n_used = nrow(mat)))
+      r <- tryCatch(max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2])), error = function(e) NULL)
+      if (!is.null(r))
+        return(list(r = r, method = "all_V", n_cond = length(V.pool), n_used = nrow(mat)))
     }
   }
 
@@ -1317,8 +1278,9 @@ pcorTTwithFallback <- function(jk, V.pool, Vconfounders, data, n_v, n_samples) {
   if (length(V_selected) > 0 && n_samples > length(V_selected) + 3) {
     mat <- na.omit(cbind(data[, c(jk, V_selected)]))
     if (nrow(mat) > length(V_selected) + 3) {
-      r <- ppcor::pcor(mat)$estimate[1, 2]
-      return(list(r = r, method = "selected_V", n_cond = length(V_selected), n_used = nrow(mat)))
+      r <- tryCatch(max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2])), error = function(e) NULL)
+      if (!is.null(r))
+        return(list(r = r, method = "selected_V", n_cond = length(V_selected), n_used = nrow(mat)))
     }
   }
 
@@ -1355,8 +1317,9 @@ pcorTCwithFallback <- function(idx, T.pool, C.pool, V.pool, Vconfounders, data, 
   if (n_samples > length(V.pool) + 3) {
     mat <- na.omit(cbind(data[, t_col], data[, c_col], data[, V.pool]))
     if (nrow(mat) > length(V.pool) + 3) {
-      r <- max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2]))
-      return(list(r = r, method = "all_V", n_cond = length(V.pool), n_used = nrow(mat)))
+      r <- tryCatch(max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2])), error = function(e) NULL)
+      if (!is.null(r))
+        return(list(r = r, method = "all_V", n_cond = length(V.pool), n_used = nrow(mat)))
     }
   }
 
@@ -1366,8 +1329,9 @@ pcorTCwithFallback <- function(idx, T.pool, C.pool, V.pool, Vconfounders, data, 
   if (length(V_selected) > 0 && n_samples > length(V_selected) + 3) {
     mat <- na.omit(cbind(data[, t_col], data[, c_col], data[, V_selected]))
     if (nrow(mat) > length(V_selected) + 3) {
-      r <- max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2]))
-      return(list(r = r, method = "selected_V", n_cond = length(V_selected), n_used = nrow(mat)))
+      r <- tryCatch(max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2])), error = function(e) NULL)
+      if (!is.null(r))
+        return(list(r = r, method = "selected_V", n_cond = length(V_selected), n_used = nrow(mat)))
     }
   }
 
@@ -1392,7 +1356,6 @@ get.conf.Tset <- function (data,
                            lambda = 0.05,
                            pi0.method = "smoother",
                            alpha = 0.01,
-                           parallel = FALSE,
                            cl = NULL,
                            chunk.size = NULL,
                            verbose = 0,
@@ -1409,163 +1372,120 @@ get.conf.Tset <- function (data,
   ## Number of V-nodes selected for each T-node
   N_Vi <- if (is.null(Vconfounders)) 0 else sapply(Vconfounders, length)
 
-  ## Check if we need fallback approach (sample size too small for all V-nodes)
-  use_fallback <- (n_v > 0) && (n_samples <= n_v + 3)
-
-  if (use_fallback && verbose) {
-    cat(paste0("            NOTE: Sample size (", n_samples,
-               ") <= V-nodes + 3 (", n_v + 3,
-               "). Using selected V-nodes instead of all V-nodes for T-T partial correlations.\n"))
-  }
-
   if (T.filter & any(N_Vi)) {
     ## Asymmetric matrix case (T.filter logic)
     ## Create a grid of (x,y) pairs (i.e. pairs of indices of columns in data)
     xygrid <- expand.grid(x = T.pool, y = T.pool)
     nonzero <- xygrid[,1] != xygrid[,2]
 
-    if (use_fallback) {
-      ## Fallback approach: for each pair (T_j, T_k), condition on
-      ## setdiff(V_k, V_j), i.e. T_k's instruments not shared with T_j.
-      ## This mirrors the non-fallback setdiff(V.pool, V_j) at pair-specific
-      ## scale, producing an asymmetric partial correlation matrix.
-      ## Note: any(N_Vi) is guaranteed TRUE by the outer condition at entry.
-      results <- matteApply(X = xygrid[nonzero, , drop = FALSE],
-                            MARGIN = 1,
-                            FUN = pcorTTgivenVjWithFallback,
-                            Vconfounders = Vconfounders,
-                            data = data,
-                            n_v = n_v,
-                            n_samples = n_samples,
-                            simplify = FALSE,
-                            chunk.size = chunk.size, cl = cl)
+    ## Compute partial correlations; fallback logic is handled inside pcorTTasymmetric
+    results <- matteApply(X = xygrid[nonzero, , drop = FALSE],
+                          MARGIN = 1,
+                          FUN = pcorTTasymmetric,
+                          V.pool = V.pool,
+                          Vconfounders = Vconfounders,
+                          data = data,
+                          n_v = n_v,
+                          n_samples = n_samples,
+                          simplify = FALSE,
+                          chunk.size = chunk.size, cl = cl)
 
-      ## Extract correlations and methods
-      r.mat <- numeric(length = NROW(xygrid))
-      r.mat[nonzero] <- sapply(results, function(x) x$r)
-      methods_used <- sapply(results, function(x) x$method)
-      n_cond_vec <- sapply(results, function(x) x$n_cond)
-      n_used_vec <- sapply(results, function(x) x$n_used)
+    ## Extract correlations and methods
+    r.mat <- numeric(length = NROW(xygrid))
+    r.mat[nonzero] <- sapply(results, function(x) x$r)
+    methods_used <- sapply(results, function(x) x$method)
+    n_cond_vec <- sapply(results, function(x) x$n_cond)
+    n_used_vec <- sapply(results, function(x) x$n_used)
 
-      ## Report method usage
-      if (verbose) {
-        method_counts <- table(methods_used)
-        cat("            Method usage for T-T partial correlations (T.filter mode):\n")
-        for (m in names(method_counts)) {
-          pct <- round(100 * method_counts[m] / length(methods_used), 1)
-          cat(paste0("              - ", m, ": ", method_counts[m], " pairs (", pct, "%)\n"))
-        }
-        if (all(methods_used == "marginal")) {
-          cat("            NOTE: all pairs cascaded to marginal correlation.\n")
-        }
+    ## Report method usage
+    if (verbose) {
+      method_counts <- table(methods_used)
+      cat("            Method usage for T-T partial correlations (T.filter = TRUE, Asymmetric Correlation Matrix):\n")
+      cat(paste0("              Sample size: ", n_samples,
+                 " | threshold (n_v + 3): ", n_v + 3,
+                 " | small sample: ", if (n_samples <= n_v + 3) "YES" else "NO", "\n"))
+      for (m in names(method_counts)) {
+        pct <- round(100 * method_counts[m] / length(methods_used), 1)
+        cat(paste0("              - ", m, ": ", method_counts[m], " pairs (", pct, "%)\n"))
       }
-
-      ## Compute p-values based on method used for each pair
-      pvalues <- numeric(length = NROW(xygrid)) + 1
-      pvalues[nonzero] <- mapply(function(r, nc, method, nu) {
-        if (method == "marginal") {
-          ## t-test for marginal correlation
-          if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
-          t_stat <- r * sqrt((nu - 2) / (1 - r^2))
-          2 * (1 - pt(abs(t_stat), df = nu - 2))
-        } else {
-          ## z-test for partial correlation
-          if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
-          z <- (sqrt(nu - nc - 3) / 2) * log((1 + r) / (1 - r))
-          2 * (1 - pnorm(abs(z)))
-        }
-      }, r.mat[nonzero], n_cond_vec, methods_used, n_used_vec)
-
-      ## Reorganize into matrices
-      r.mat <- matrix(r.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
-      p.mat <- matrix(pvalues, nrow = n_t, ncol = n_t, byrow = FALSE)
+      if (all(methods_used == "marginal")) {
+        cat("              NOTE: all pairs cascaded to marginal correlation.\n")
+      }
     }
-    else {
-      ## Original approach: use all V-nodes minus V_j for each pair
-      r.mat <- numeric(length = NROW(xygrid))
-      r.mat[nonzero] <- matteApply(X = xygrid[nonzero, , drop = FALSE],
-                                   MARGIN = 1,
-                                   FUN = pcorTTgivenVj,
-                                   V.pool = V.pool,
-                                   Vset = Vconfounders,
-                                   data = data, n_v = n_v,
-                                   chunk.size = chunk.size, cl = cl)
 
-      ## Perform Pearson tests and extract p-values
-      ## S = conditioning set size per pair = n_v - N_Vi[T_j], where T_j is the row node
-      ## (pcorTTgivenVj conditions on setdiff(V.pool, V_j), size = n_v - N_Vi[j])
-      pvalues <- numeric(length = NROW(xygrid)) + 1
-      T_j_indices <- xygrid[nonzero, "x"] - n_v   # 1-based T-node index for each row node
-      S_vec <- n_v - N_Vi[T_j_indices]
-      pvalues[nonzero] <- p.from.parcor(r.mat[nonzero], n = n_samples, S = S_vec)$pvalue
+    ## Compute p-values based on method used for each pair
+    pvalues <- numeric(length = NROW(xygrid)) + 1
+    pvalues[nonzero] <- mapply(function(r, nc, method, nu) {
+      if (method == "marginal") {
+        ## t-test for marginal correlation
+        if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
+        t_stat <- r * sqrt((nu - 2) / (1 - r^2))
+        2 * (1 - pt(abs(t_stat), df = nu - 2))
+      } else {
+        ## z-test for partial correlation
+        if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
+        z <- (sqrt(nu - nc - 3) / 2) * log((1 + r) / (1 - r))
+        2 * (1 - pnorm(abs(z)))
+      }
+    }, r.mat[nonzero], n_cond_vec, methods_used, n_used_vec)
 
-      ## Reorganize into matrices
-      r.mat <- matrix(r.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
-      p.mat <- matrix(pvalues, nrow = n_t, ncol = n_t, byrow = FALSE)
-    }
+    ## Reorganize into matrices
+    r.mat <- matrix(r.mat, nrow = n_t, ncol = n_t, byrow = FALSE)
+    p.mat <- matrix(pvalues, nrow = n_t, ncol = n_t, byrow = FALSE)
   }
   else {
     ## Symmetric matrix case
     ## Create a grid of (x,y) pairs - only lower triangle
     xygrid <- t(combn(T.pool, m = 2))
 
-    if (use_fallback) {
-      ## Use fallback approach with selected V-nodes or marginal correlation
-      results <- matteApply(X = xygrid,
-                            MARGIN = 1,
-                            FUN = pcorTTwithFallback,
-                            V.pool = V.pool,
-                            Vconfounders = Vconfounders,
-                            data = data,
-                            n_v = n_v,
-                            n_samples = n_samples,
-                            simplify = FALSE,
-                            chunk.size = chunk.size, cl = cl)
+    ## Compute partial correlations; fallback logic is handled inside pcorTTsymmetric
+    results <- matteApply(X = xygrid,
+                          MARGIN = 1,
+                          FUN = pcorTTsymmetric,
+                          V.pool = V.pool,
+                          Vconfounders = Vconfounders,
+                          data = data,
+                          n_v = n_v,
+                          n_samples = n_samples,
+                          simplify = FALSE,
+                          chunk.size = chunk.size, cl = cl)
 
-      ## Extract correlations and methods
-      pcorrs <- sapply(results, function(x) x$r)
-      methods_used <- sapply(results, function(x) x$method)
-      n_cond_vec <- sapply(results, function(x) x$n_cond)
-      n_used_vec <- sapply(results, function(x) x$n_used)
+    ## Extract correlations and methods
+    pcorrs <- sapply(results, function(x) x$r)
+    methods_used <- sapply(results, function(x) x$method)
+    n_cond_vec <- sapply(results, function(x) x$n_cond)
+    n_used_vec <- sapply(results, function(x) x$n_used)
 
-      ## Report method usage
-      if (verbose) {
-        method_counts <- table(methods_used)
-        cat("            Method usage for T-T partial correlations:\n")
-        for (m in names(method_counts)) {
-          pct <- round(100 * method_counts[m] / length(methods_used), 1)
-          cat(paste0("              - ", m, ": ", method_counts[m], " pairs (", pct, "%)\n"))
-        }
+    ## Report method usage
+    if (verbose) {
+      method_counts <- table(methods_used)
+      cat("            Method usage for T-T partial correlations (T.filter = FALSE, Symmetric Correlation Matrix):\n")
+      cat(paste0("              Sample size: ", n_samples,
+                 " | threshold (n_v + 3): ", n_v + 3,
+                 " | small sample: ", if (n_samples <= n_v + 3) "YES" else "NO", "\n"))
+      for (m in names(method_counts)) {
+        pct <- round(100 * method_counts[m] / length(methods_used), 1)
+        cat(paste0("              - ", m, ": ", method_counts[m], " pairs (", pct, "%)\n"))
       }
-
-      ## Compute p-values based on method used for each pair
-      pvalues <- mapply(function(r, nc, method, nu) {
-        if (method == "marginal") {
-          ## t-test for marginal correlation
-          if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
-          t_stat <- r * sqrt((nu - 2) / (1 - r^2))
-          2 * (1 - pt(abs(t_stat), df = nu - 2))
-        } else {
-          ## z-test for partial correlation
-          if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
-          z <- (sqrt(nu - nc - 3) / 2) * log((1 + r) / (1 - r))
-          2 * (1 - pnorm(abs(z)))
-        }
-      }, pcorrs, n_cond_vec, methods_used, n_used_vec)
-
+      if (all(methods_used == "marginal")) {
+        cat("              NOTE: all pairs cascaded to marginal correlation.\n")
+      }
     }
-    else {
-      ## Original approach: partial correlations given all V-nodes
-      pcorrs <- matteApply(X = xygrid,
-                           MARGIN = 1,
-                           FUN = pcorTTgivenV,
-                           V.pool = V.pool,
-                           data = data,
-                           chunk.size = chunk.size, cl = cl)
 
-      ## Compute p-values
-      pvalues <- p.from.parcor(pcorrs, n = n_samples, S = n_v)$pvalue
-    }
+    ## Compute p-values based on method used for each pair
+    pvalues <- mapply(function(r, nc, method, nu) {
+      if (method == "marginal") {
+        ## t-test for marginal correlation
+        if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
+        t_stat <- r * sqrt((nu - 2) / (1 - r^2))
+        2 * (1 - pt(abs(t_stat), df = nu - 2))
+      } else {
+        ## z-test for partial correlation
+        if (abs(r) >= 1) return(if (abs(r) == 1) 0 else NA)
+        z <- (sqrt(nu - nc - 3) / 2) * log((1 + r) / (1 - r))
+        2 * (1 - pnorm(abs(z)))
+      }
+    }, pcorrs, n_cond_vec, methods_used, n_used_vec)
 
     ## Reorganize into matrices
     r.mat <- p.mat <- diag(n_t)
@@ -1719,47 +1639,23 @@ get.conf.Tset <- function (data,
 }
 
 
-# Get T-T partial correlation given all V-nodes (calls ppcor::pcor)
-pcorTTgivenV <- function (jk, V.pool, data) {
-  tryCatch({
-    mat <- na.omit(cbind(data[, c(jk, V.pool)]))
-    ppcor::pcor(mat)$estimate[1, 2]
-  }, error = function(e) {
-    warning("pcorTTgivenV failed for pair (", jk[1], ", ", jk[2], "): ", e$message)
-    NA
-  })
-}
-
-# Get T-T partial correlation given selected V-nodes
-pcorTTgivenVj <- function (jk, V.pool, Vset, data, n_v) {
-
-  Vjk <- setdiff(V.pool, Vset[[jk[1] - n_v]])
-
-  tryCatch({
-    mat <- na.omit(cbind(data[, c(jk, Vjk)]))
-    ppcor::pcor(mat)$estimate[1, 2]
-  }, error = function(e) {
-    warning("pcorTTgivenVj failed for pair (", jk[1], ", ", jk[2], "): ", e$message)
-    NA
-  })
-}
-
-#' T-T partial correlation with fallback for T.filter mode
+#' T-T partial correlation for T.filter mode with cascading fallback
 #'
-#' Computes partial correlation between two T-nodes using pair-specific
-#' selected V-nodes while excluding T_j's instruments (T.filter philosophy).
-#' For pair (T_j, T_k), the conditioning set is setdiff(V_k, V_j), i.e.
-#' T_k's selected instruments that are not shared with T_j. Falls back to
-#' marginal correlation when the conditioning set is empty or sample size
-#' is insufficient.
+#' Computes partial correlation between two T-nodes (T_j, T_k) using the
+#' T.filter philosophy, with three cascading steps:
+#' Step 1: condition on setdiff(V.pool, V_j) — all V-nodes minus T_j's instruments
+#'         (the full-data approach, used when sample size is sufficient).
+#' Step 2: condition on setdiff(V_k, V_j) — T_k's selected instruments not shared with T_j.
+#' Step 3: marginal correlation when conditioning sets are empty or sample size is insufficient.
 #'
 #' @param jk vector of two column indices (T_j, T_k) in data
+#' @param V.pool vector of all V-node column indices in data
 #' @param Vconfounders list of selected V-node indices for each T-node
 #' @param data data matrix
 #' @param n_v number of V-nodes
 #' @param n_samples sample size
-#' @return list with r (correlation), method (string), n_cond (conditioning set size)
-pcorTTgivenVjWithFallback <- function(jk, Vconfounders, data, n_v, n_samples) {
+#' @return list with r (correlation), method (string), n_cond (conditioning set size), n_used (sample size used)
+pcorTTasymmetric <- function(jk, V.pool, Vconfounders, data, n_v, n_samples) {
 
   ## T-node indices (1 to n_t)
   t_j_idx <- jk[1] - n_v  # row node
@@ -1771,18 +1667,29 @@ pcorTTgivenVjWithFallback <- function(jk, Vconfounders, data, n_v, n_samples) {
   if (is.null(V_j)) V_j <- integer(0)
   if (is.null(V_k)) V_k <- integer(0)
 
-  ## Conditioning set: T_k's instruments not shared with T_j
-  ## This is the pair-specific analog of setdiff(V.pool, V_j)
-  V_cond <- setdiff(V_k, V_j)
+  ## Step 1: Try all V-nodes minus V_j if sample size is sufficient
+  V_all_minus_j <- setdiff(V.pool, V_j)
+  if (length(V_all_minus_j) > 0 && n_samples > length(V_all_minus_j) + 3) {
+    mat <- na.omit(cbind(data[, jk], data[, V_all_minus_j]))
+    if (nrow(mat) > length(V_all_minus_j) + 3) {
+      r <- tryCatch(max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2])), error = function(e) NULL)
+      if (!is.null(r))
+        return(list(r = r, method = "all_V_minus_V_j", n_cond = length(V_all_minus_j), n_used = nrow(mat)))
+    }
+  }
 
+  ## Step 2: Try selected V_k minus V_j
+  V_cond <- setdiff(V_k, V_j)
   if (length(V_cond) > 0 && n_samples > length(V_cond) + 3) {
     mat <- na.omit(cbind(data[, jk], data[, V_cond]))
     if (nrow(mat) > length(V_cond) + 3) {
-      r <- ppcor::pcor(mat)$estimate[1, 2]
-      return(list(r = r, method = "selected_V_k_minus_V_j", n_cond = length(V_cond), n_used = nrow(mat)))
+      r <- tryCatch(max(-1, min(1, (-cov2cor(mpinv(cov(mat))))[1, 2])), error = function(e) NULL)
+      if (!is.null(r))
+        return(list(r = r, method = "selected_V_k_minus_V_j", n_cond = length(V_cond), n_used = nrow(mat)))
     }
   }
-  ## Fall back to marginal correlation
+
+  ## Step 3: Fall back to marginal correlation
   r <- cor(data[, jk[1]], data[, jk[2]], use = "complete.obs")
   n_used <- sum(complete.cases(data[, c(jk[1], jk[2])]))
   return(list(r = r, method = "marginal", n_cond = 0, n_used = n_used))

@@ -72,7 +72,7 @@ get.conf.matrix <- function (data = NULL,
                           ncol(data), " x ", ncol(cov.pool), " using ", ceiling(dim(data)[2]/blocksize),
                           " blocks"))
            }
-           h5_file <- propagate::bigcor(data, cov.pool, verbose = verbose,
+           h5_file <- propagate::bigcor(data, cov.pool, verbose = FALSE,
                                         use = "pairwise.complete.obs", size = blocksize)
            on.exit(if (file.exists(h5_file)) unlink(h5_file), add = TRUE)
            h5f <- hdf5r::H5File$new(h5_file, mode = "r")
@@ -185,7 +185,7 @@ get.conf.matrix <- function (data = NULL,
   }
   else {
     if (verbose) {
-    message(paste0("Applying", FDRcontrol[1]," correct with threshold ",
+    message(paste0("Applying ", FDRcontrol[1]," correction with threshold ",
                    alpha))
     }
     switch(adjust_by,
