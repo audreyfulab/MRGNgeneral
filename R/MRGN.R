@@ -80,6 +80,15 @@
 #' \code{'M2'} trio structures be dropped during adjacency matrix update?
 #' Passed to \link{update.adjacency.matrix}.
 #'
+#' @param VTTthresh Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
+#'   algorithm runs unchanged. When set to a value in \eqn{(0, 1]}, the T-T block of the
+#'   final adjacency matrix is replaced by a majority-vote procedure over all VTT trios:
+#'   a T-T edge is retained only if the fraction of trios supporting it (via models
+#'   \code{M1.1}, \code{M1.2}, \code{M2.1}, \code{M2.2}, \code{M4}, or \code{Other.1})
+#'   strictly exceeds \code{VTTthresh}, and its direction is determined by majority vote
+#'   among directional models. Values outside \eqn{[0, 1]} trigger a warning and revert
+#'   to \code{0}.
+#'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
 #' \link[parallel]{parLapply} (when supplied).
 #'
@@ -130,6 +139,38 @@
 #'                 verbose = TRUE)
 #' }
 
+.majority_adj <- function(adjacency, ts, ana, Tidx,
+                          keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
+                          thresh = 0.5, clear.tt = TRUE) {
+  md <- ana$Inferred.Model
+  ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]
+
+  A <- adjacency
+  if (clear.tt) A[Tidx, Tidx] <- 0
+
+  lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])
+  key <- paste0(lo, ".", hi)
+
+  ex <- tapply(md %in% keep, key, mean)
+  keep.pairs <- names(ex)[ex > thresh]
+
+  for (k in keep.pairs) {
+    idx <- which(key == k)
+    a <- lo[idx[1]]; b <- hi[idx[1]]
+    dir <- md[idx] %in% c("M1.1","M1.2","M2.1","M2.2")
+    if (any(dir)) {
+      di <- idx[dir]; m <- md[di]
+      from <- ifelse(m %in% c("M1.1","M2.2"), ts[di,2], ts[di,3])
+      to   <- ifelse(m %in% c("M1.1","M2.2"), ts[di,3], ts[di,2])
+      ab <- sum(from == a & to == b); ba <- sum(from == b & to == a)
+    } else ab <- ba <- 0
+    if      (ab > ba) A[a,b] <- 1
+    else if (ba > ab) A[b,a] <- 1
+    else            { A[a,b] <- 1; A[b,a] <- 1 }
+  }
+  A
+}
+
 # We have four blocks of columns in data: V, T, (I&C) and confounders
 
 # Post filtering based on marginal tests ???
@@ -169,6 +210,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   cl = parallel::getDefaultCluster(),
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
+                  VTTthresh = 0,
                   seed = NULL) { # seed for reproducible results in parallel computing
   # ============================================================================
   # Save the call to MRGN
@@ -201,6 +243,11 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   # Check arguments & Pre-process some inputs
   # ----------------------------------------------------------------------------
   eval(check.mrgn.args())
+
+  if (!is.numeric(VTTthresh) || length(VTTthresh) != 1 || VTTthresh < 0 || VTTthresh > 1) {
+    warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
+    VTTthresh <- 0
+  }
 
   # ============================================================================
   ### Save the current Adjacency matrix
@@ -889,6 +936,15 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   }
 
   # ======================================================================================
+  if (VTTthresh > 0 && !is.null(trio.set) && !is.null(trio.analysis)) {
+    Tidx <- (n_v + 1L):(n_v + n_t)
+    adjacency <- .majority_adj(adjacency = adjacency,
+                               ts = trio.set,
+                               ana = trio.analysis,
+                               Tidx = Tidx,
+                               thresh = VTTthresh)
+  }
+
   structure(
     list(adjacency = structure(adjacency, class = 'adjacency.matrix'),
          VTTtrio.set = trio.set,
