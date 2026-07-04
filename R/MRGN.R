@@ -596,6 +596,18 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
     Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
   }
 
+  # Apply VTTthresh majority vote on T-T block before Step 4 so that Step 4
+  # propagates from the majority-vote skeleton rather than the raw iterative skeleton.
+  if (VTTthresh > 0 && !is.null(trio.set) && !is.null(trio.analysis)) {
+    Tidx <- (n_v + 1L):(n_v + n_t)
+    adjacency <- .majority_adj(adjacency = adjacency,
+                               ts        = trio.set,
+                               ana       = trio.analysis,
+                               Tidx      = Tidx,
+                               thresh    = VTTthresh)
+    Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
+  }
+
   ### Step 4: List trios involving no genetic variant and direct related edges
   # ----------------------------------------------------------------------------
 
@@ -933,16 +945,6 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
       cat("\n      # the final network is not fully directed. \n")
     else
       cat("\n      # the final network is fully directed. \n")
-  }
-
-  # ======================================================================================
-  if (VTTthresh > 0 && !is.null(trio.set) && !is.null(trio.analysis)) {
-    Tidx <- (n_v + 1L):(n_v + n_t)
-    adjacency <- .majority_adj(adjacency = adjacency,
-                               ts = trio.set,
-                               ana = trio.analysis,
-                               Tidx = Tidx,
-                               thresh = VTTthresh)
   }
 
   structure(
