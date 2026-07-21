@@ -113,6 +113,7 @@ update.adjacency.matrix <- function (adjacency,
                                        n_t = n_t, n_v = n_v, n_q = n_q, # Currently not used
                                        triplet.set = trio.set,
                                        inferred.models = inferred.models,
+                                       stringent = stringent,
                                        add.edges = add.edges,
                                        solve.conflicts = solve.conflicts[1],
                                        method = method[1],

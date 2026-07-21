@@ -32,15 +32,16 @@ update_adjacency_matrix_triplet <- function (adjacency,
     # Triplets of type 2
     if (any(type2 <- subtriplet.set[,4] == 2)) {
 
+      # Mediation model Ti -> Tj -> Tk: keep/add Tj --> Tk
       if (add.edges) {
       edge_add <- rbind(edge_add,
-                        cbind(subtriplet.set[type2,1], subtriplet.set[type2,3])) # Yes (Ti --> Tk) # useless, Ti --> Tk is always 1 for a type 2 triplet
+                        cbind(subtriplet.set[type2,2], subtriplet.set[type2,3]))
       }
 
-      # Drop edges not appearing in 'M1.1'?
+      # Drop the reverse direction of the mediated edge (Tk --> Tj)
       if (stringent) {
         edge_drop <- rbind(edge_drop,
-                           cbind(subtriplet.set[type2,3], subtriplet.set[type2,1]))
+                           cbind(subtriplet.set[type2,3], subtriplet.set[type2,2]))
       }
     }
   }
@@ -52,17 +53,16 @@ update_adjacency_matrix_triplet <- function (adjacency,
   if (any(index)) {
     subtriplet.set <- triplet.set[index,, drop = FALSE]
 
+    # V-structure (collider) Ti -> Tj <- Tk: keep/add Tk --> Tj; Ti --> Tj is left untouched
     if (add.edges) {
     edge_add <- rbind(edge_add,
-                      cbind(subtriplet.set[,3], subtriplet.set[,1]), # Yes (Ti --> Tk) # useless, Ti --> Tk is always 1 for a type 2 triplet
-                      cbind(subtriplet.set[,2], subtriplet.set[,1])) # Yes (Ti --> Tk) # useless, Ti --> Tk is always 1 for a type 2 triplet
+                      cbind(subtriplet.set[,3], subtriplet.set[,2]))
     }
 
-    # Drop edges not appearing in 'M2.1'?
+    # Drop the reverse direction of the collider edge (Tj --> Tk)
     if (stringent) {
       edge_drop <- rbind(edge_drop,
-                         cbind(subtriplet.set[,1], subtriplet.set[,3]), # No  (Tk --> Ti)
-                         cbind(subtriplet.set[,1], subtriplet.set[,2])) # No  (Tk --> Ti)
+                         cbind(subtriplet.set[,2], subtriplet.set[,3]))
     }
   }
 
@@ -70,11 +70,24 @@ update_adjacency_matrix_triplet <- function (adjacency,
   edge_drop <- unique(edge_drop)
   edge_add <- unique(edge_add)
 
+  # Direction conflict: different triplets disagreeing about the same edge can
+  # queue both (a,b) and (b,a) for dropping. Per the 'conservative' method,
+  # such conflicts are solved by leaving the edge undirected, not by dropping
+  # both directions (which would delete the edge entirely).
+  nb.drop_conflicts <- 0
+  if (NROW(edge_drop) > 1) {
+    drop.key <- paste0(edge_drop[,1], '.', edge_drop[,2])
+    drop.key.rv <- paste0(edge_drop[,2], '.', edge_drop[,1])
+    reciprocal <- drop.key %in% drop.key.rv
+    nb.drop_conflicts <- sum(reciprocal) / 2
+    edge_drop <- edge_drop[!reciprocal, , drop = FALSE]
+  }
+
   # Update the list of dropped edge directions
   dropped.edges <- c(dropped.edges, paste0(edge_drop[,1], '.', edge_drop[,2]))
 
   ## Update edge directions
-  nb.drop_conflicts <- nb.add_conflicts <- 0
+  nb.add_conflicts <- 0
   ## Drop edges
   if (NROW(edge_drop)) {
     adjacency[edge_drop] <- 0
