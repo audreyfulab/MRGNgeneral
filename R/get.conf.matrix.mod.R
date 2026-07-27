@@ -73,7 +73,8 @@ get.conf.matrix <- function (data = NULL,
                           " blocks"))
            }
            h5_file <- propagate::bigcor(data, cov.pool, verbose = FALSE,
-                                        use = "pairwise.complete.obs", size = blocksize)
+                                        use = "pairwise.complete.obs", size = blocksize,
+                                        file = tempfile(fileext = ".h5"))
            on.exit(if (file.exists(h5_file)) unlink(h5_file), add = TRUE)
            h5f <- hdf5r::H5File$new(h5_file, mode = "r")
            r.mat <- t(h5f[["matrix"]][,])
