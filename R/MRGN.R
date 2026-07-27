@@ -89,6 +89,20 @@
 #'   among directional models. Values outside \eqn{[0, 1]} trigger a warning and revert
 #'   to \code{0}.
 #'
+#' @param TTTthresh Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
+#'   algorithm runs unchanged for triplets of \code{T}-nodes (\emph{Step} \code{III.2}
+#'   / \emph{Step} \code{4}). When set to a value in \eqn{(0, 1]}, the direction of
+#'   "candidate trio (2)" triplets (\code{Ti -> Tj - Tk}, where \code{Ti -> Tj} is
+#'   already established and only \code{Tj-Tk} is undirected) is decided by a
+#'   majority-vote procedure over all such triplets sharing the same \code{Tj-Tk} edge:
+#'   the edge is directed only if the fraction of triplets voting \code{M1.1} or
+#'   \code{M2.1} (as opposed to \code{"Other"}) strictly exceeds \code{TTTthresh}, with
+#'   direction set by majority among the \code{M1.1}/\code{M2.1} votes. Unlike
+#'   \code{VTTthresh}, this never removes an edge: \code{Tj-Tk} is known to already
+#'   exist for these triplets, so edges that do not exceed the threshold, or were never
+#'   tested by a "candidate trio (2)" triplet, are left unchanged. Values outside
+#'   \eqn{[0, 1]} trigger a warning and revert to \code{0}.
+#'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
 #' \link[parallel]{parLapply} (when supplied).
 #'
@@ -139,38 +153,6 @@
 #'                 verbose = TRUE)
 #' }
 
-.majority_adj <- function(adjacency, ts, ana, Tidx,
-                          keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
-                          thresh = 0.5, clear.tt = TRUE) {
-  md <- ana$Inferred.Model
-  ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]
-
-  A <- adjacency
-  if (clear.tt) A[Tidx, Tidx] <- 0
-
-  lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])
-  key <- paste0(lo, ".", hi)
-
-  ex <- tapply(md %in% keep, key, mean)
-  keep.pairs <- names(ex)[ex > thresh]
-
-  for (k in keep.pairs) {
-    idx <- which(key == k)
-    a <- lo[idx[1]]; b <- hi[idx[1]]
-    dir <- md[idx] %in% c("M1.1","M1.2","M2.1","M2.2")
-    if (any(dir)) {
-      di <- idx[dir]; m <- md[di]
-      from <- ifelse(m %in% c("M1.1","M2.2"), ts[di,2], ts[di,3])
-      to   <- ifelse(m %in% c("M1.1","M2.2"), ts[di,3], ts[di,2])
-      ab <- sum(from == a & to == b); ba <- sum(from == b & to == a)
-    } else ab <- ba <- 0
-    if      (ab > ba) A[a,b] <- 1
-    else if (ba > ab) A[b,a] <- 1
-    else            { A[a,b] <- 1; A[b,a] <- 1 }
-  }
-  A
-}
-
 # We have four blocks of columns in data: V, T, (I&C) and confounders
 
 # Post filtering based on marginal tests ???
@@ -211,6 +193,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
                   VTTthresh = 0,
+                  TTTthresh = 0,
                   seed = NULL) { # seed for reproducible results in parallel computing
   # ============================================================================
   # Save the call to MRGN
@@ -247,6 +230,11 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   if (!is.numeric(VTTthresh) || length(VTTthresh) != 1 || VTTthresh < 0 || VTTthresh > 1) {
     warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
     VTTthresh <- 0
+  }
+
+  if (!is.numeric(TTTthresh) || length(TTTthresh) != 1 || TTTthresh < 0 || TTTthresh > 1) {
+    warning("TTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
+    TTTthresh <- 0
   }
 
   # ============================================================================
@@ -939,6 +927,26 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
 
   }
 
+  # Apply TTTthresh majority vote on candidate-trio-(2) T-T edges, i.e. triplets
+  # [Ti,Tj,Tk] where Ti --> Tj is already established and only Tj-Tk is undirected.
+  # Unlike VTTthresh, existence of Tj-Tk is never in question here (it is a
+  # precondition for the triplet to have been formed), so edges below threshold,
+  # or never tested by a type-2 triplet, are left untouched (clear.tt = FALSE).
+  if (TTTthresh > 0 && !is.null(triplet.set) && !is.null(triplet.analysis)) {
+    type2 <- triplet.set[,4] == 2
+    if (any(type2)) {
+      Tidx <- (n_v + 1L):(n_v + n_t)
+      adjacency <- .majority_adj(adjacency = adjacency,
+                                 ts        = triplet.set[type2,, drop = FALSE],
+                                 ana       = triplet.analysis[type2,, drop = FALSE],
+                                 Tidx      = Tidx,
+                                 keep      = c("M1.1", "M2.1"),
+                                 thresh    = TTTthresh,
+                                 clear.tt  = FALSE)
+      Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
+    }
+  }
+
   # Report on the presence of undirected edges in the final network
   if (verbose) {
     if (Not.fully.directed)
@@ -970,6 +978,37 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
     class = "MRGN")
 }
 
+.majority_adj <- function(adjacency, ts, ana, Tidx,
+                          keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
+                          thresh = 0.5, clear.tt = TRUE) {
+  md <- ana$Inferred.Model
+  ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]
+
+  A <- adjacency
+  if (clear.tt) A[Tidx, Tidx] <- 0
+
+  lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])
+  key <- paste0(lo, ".", hi)
+
+  ex <- tapply(md %in% keep, key, mean)
+  keep.pairs <- names(ex)[ex > thresh]
+
+  for (k in keep.pairs) {
+    idx <- which(key == k)
+    a <- lo[idx[1]]; b <- hi[idx[1]]
+    dir <- md[idx] %in% c("M1.1","M1.2","M2.1","M2.2")
+    if (any(dir)) {
+      di <- idx[dir]; m <- md[di]
+      from <- ifelse(m %in% c("M1.1","M2.2"), ts[di,2], ts[di,3])
+      to   <- ifelse(m %in% c("M1.1","M2.2"), ts[di,3], ts[di,2])
+      ab <- sum(from == a & to == b); ba <- sum(from == b & to == a)
+    } else ab <- ba <- 0
+    if      (ab > ba) { A[a,b] <- 1; A[b,a] <- 0 }
+    else if (ba > ab) { A[b,a] <- 1; A[a,b] <- 0 }
+    else            { A[a,b] <- 1; A[b,a] <- 1 }
+  }
+  A
+}
 
 # A brief print method for MRGN output (class 'MRGN')
 # Issue with the count of edges: not consistent with graphNEL result

@@ -2,7 +2,7 @@
 % Please edit documentation in R/get.initial_skeleton.R
 \name{get.initial.skeleton}
 \alias{get.initial.skeleton}
-\title{#' Build the input graph for MRGN inference}
+\title{Build the input graph for MRGN inference}
 \usage{
 get.initial.skeleton(
   data,
@@ -75,4 +75,5 @@ Recall_Precision <- RecallPrecision(as (networka11$adjacency, 'graphNEL'),
                                     edge.presence = 1.0,
                                     edge.direction = 0.5)
 }
+
 }

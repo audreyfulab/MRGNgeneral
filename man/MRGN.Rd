@@ -16,7 +16,7 @@ MRGN(
   adjacency,
   is.CNA = FALSE,
   alpha = 0.01,
-  use.perm = TRUE,
+  use.perm = FALSE,
   gamma = 0.05,
   nperms = 10000,
   FDRcontrol = c("bonferroni", "qvalue", "none"),
@@ -34,6 +34,7 @@ MRGN(
   chunk.size = NULL,
   verbose = 0L,
   VTTthresh = 0,
+  TTTthresh = 0,
   seed = NULL
 )
 }
@@ -108,18 +109,27 @@ If NULL (default), no limit is imposed}
 for more detailed progress messages}
 
 \item{VTTthresh}{Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
-algorithm runs unchanged. When set to a value in \eqn{(0, 1]}, a majority-vote
-procedure is applied to the T-T block \emph{after} Step 3 (VTT trio analysis) and
-\emph{before} Step 4 (TTT triplet analysis). The T-T block is rebuilt from scratch:
-a T-T edge is retained only if the fraction of VTT trios supporting it (via models
+algorithm runs unchanged. When set to a value in \eqn{(0, 1]}, the T-T block of the
+final adjacency matrix is replaced by a majority-vote procedure over all VTT trios:
+a T-T edge is retained only if the fraction of trios supporting it (via models
 \code{M1.1}, \code{M1.2}, \code{M2.1}, \code{M2.2}, \code{M4}, or \code{Other.1})
 strictly exceeds \code{VTTthresh}, and its direction is determined by majority vote
-among directional models; tied directional votes produce an undirected edge.
-Step 4 then runs on this majority-vote skeleton: it can orient undirected T-T edges
-(e.g., directional ties) by propagating from the directed seeds established in Step 3,
-but cannot add new T-T connections beyond those already placed by the majority vote.
-Step 4's orientations survive to the final returned adjacency.
-Values outside \eqn{[0, 1]} trigger a warning and revert to \code{0}.}
+among directional models. Values outside \eqn{[0, 1]} trigger a warning and revert
+to \code{0}.}
+
+\item{TTTthresh}{Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
+algorithm runs unchanged for triplets of \code{T}-nodes (\emph{Step} \code{III.2}
+/ \emph{Step} \code{4}). When set to a value in \eqn{(0, 1]}, the direction of
+"candidate trio (2)" triplets (\code{Ti -> Tj - Tk}, where \code{Ti -> Tj} is
+already established and only \code{Tj-Tk} is undirected) is decided by a
+majority-vote procedure over all such triplets sharing the same \code{Tj-Tk} edge:
+the edge is directed only if the fraction of triplets voting \code{M1.1} or
+\code{M2.1} (as opposed to \code{"Other"}) strictly exceeds \code{TTTthresh}, with
+direction set by majority among the \code{M1.1}/\code{M2.1} votes. Unlike
+\code{VTTthresh}, this never removes an edge: \code{Tj-Tk} is known to already
+exist for these triplets, so edges that do not exceed the threshold, or were never
+tested by a "candidate trio (2)" triplet, are left unchanged. Values outside
+\eqn{[0, 1]} trigger a warning and revert to \code{0}.}
 
 \item{seed}{Integer, random seed for reproducible results in parallel computing.
 If NULL (default), no seed is set}

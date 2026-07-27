@@ -15,7 +15,7 @@ get.conf.sets(
   skip.C = FALSE,
   T.measure = c("partial", "marginal"),
   C.measure = T.measure,
-  blocksize = 100,
+  blocksize = 10,
   FDRcontrol = c("qvalue", "bonferroni", "none"),
   V.FDRcontrol = FDRcontrol,
   T.FDRcontrol = FDRcontrol,
@@ -29,12 +29,13 @@ get.conf.sets(
   T.filter = FALSE,
   fdr = 0.05,
   lambda = 0.05,
-  pi0.method = c("smoother", "boostrap"),
+  pi0.method = c("smoother", "bootstrap"),
   alpha = 0.01,
   parallel = FALSE,
   cl = parallel::getDefaultCluster(),
   chunk.size = NULL,
   verbose = 0,
+  use_selected_V_for_WZ = FALSE,
   save.list = FALSE,
   save.path = "/path/to/save/location/",
   seed = NULL
@@ -102,6 +103,12 @@ Only used if \code{parallel = TRUE}.}
 
 \item{verbose}{integer, verbosity level. 0 (default) for silent operation,
 higher values for more detailed progress messages}
+
+\item{use_selected_V_for_WZ}{logical, should the union of V-nodes selected in
+stage a (V-node selection) be used instead of all V-nodes when identifying
+W,Z-nodes (stage d)? Defaults to \code{FALSE} (always use all V-nodes).
+Set to \code{TRUE} for consistency with the fallback approach used in stages b
+and c when sample size is small relative to the number of V-nodes.}
 
 \item{save.list}{(logical) if TRUE the output is saved as a \code{.RData}
 object (default = FALSE).}
@@ -172,7 +179,8 @@ that here, the associations between each \code{T}-node and all other \code{T}-no
 in the network are tested, and the association measure between two \code{T}-nodes can
 be partial (the default) or marginal correlation (specified via \code{T.measure}).
 When \code{T.measure = "partial"}, partial correlations are computed given all
-\code{V}-nodes in the network, and \emph{z}-tests are used instead of \emph{t}-tests.}
+\code{V}-nodes in the network, and \emph{z}-tests are used instead of \emph{t}-tests.
+When sample size is smaller than V-nodes + 3, selected V-nodes are used instead.}
 \item{C-node selection:}{ this step has two sub-steps. The first sub-step is a pre-selection
 which is similar to \emph{T-node selection}, except that the association of each \code{T}-node
 with each \code{C}-node is tested. The results is a pool of confounding variables
