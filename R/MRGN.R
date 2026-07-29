@@ -978,31 +978,39 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
     class = "MRGN")
 }
 
-.majority_adj <- function(adjacency, ts, ana, Tidx,
+.majority_adj <- function(adjacency, ts, ana, Tidx,        # Tidx = which rows/cols of adjacency are T-nodes
                           keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
                           thresh = 0.5, clear.tt = TRUE) {
-  md <- ana$Inferred.Model
-  ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]
+  md <- ana$Inferred.Model                # md = the model each trio in ts was classified as, one entry per trio
+  ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]  # drop trios with no classification (NA) before using md/ts below
 
-  A <- adjacency
-  if (clear.tt) A[Tidx, Tidx] <- 0
+  A <- adjacency                          # copy; changing A below won't change the adjacency matrix in the function that called this one
+  if (clear.tt) A[Tidx, Tidx] <- 0        # majority owns the T-T block (VTT); TTT passes clear.tt = FALSE instead
 
-  lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])
-  key <- paste0(lo, ".", hi)
+  lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])  # canonical (lo,hi) so the same pair gets the same key regardless of column order
+  key <- paste0(lo, ".", hi)              # one key per Tj-Tk pair; pools all trios that tested it, whatever the third node (Vi or Ti) was
 
+  # For each Tj-Tk pair, compute what fraction of its trios have a model in
+  # 'keep' (md %in% keep is TRUE/FALSE per trio; averaging TRUE/FALSE within
+  # a pair gives the fraction that were TRUE). Keep the pair only if that
+  # fraction is > thresh -- not all trios need to agree, just enough of them.
   ex <- tapply(md %in% keep, key, mean)
   keep.pairs <- names(ex)[ex > thresh]
 
-  for (k in keep.pairs) {
-    idx <- which(key == k)
-    a <- lo[idx[1]]; b <- hi[idx[1]]
-    dir <- md[idx] %in% c("M1.1","M1.2","M2.1","M2.2")
+  for (k in keep.pairs) {           # for each pair that passed the existence check above
+    idx <- which(key == k)          # all trios that tested this specific pair
+    a <- lo[idx[1]]; b <- hi[idx[1]] # the two node ids for this pair (same for every trio in idx)
+    dir <- md[idx] %in% c("M1.1","M1.2","M2.1","M2.2")  # which of this pair's trios have an opinion on direction (M4/Other.1 don't)
     if (any(dir)) {
       di <- idx[dir]; m <- md[di]
+      # translate each directional trio's model into an actual edge direction:
+      # M1.1/M2.2 mean col2 -> col3; M1.2/M2.1 mean col3 -> col2 (see update_adj_mat_trio.R)
       from <- ifelse(m %in% c("M1.1","M2.2"), ts[di,2], ts[di,3])
       to   <- ifelse(m %in% c("M1.1","M2.2"), ts[di,3], ts[di,2])
-      ab <- sum(from == a & to == b); ba <- sum(from == b & to == a)
-    } else ab <- ba <- 0
+      ab <- sum(from == a & to == b); ba <- sum(from == b & to == a)  # count votes for a->b vs b->a
+    } else ab <- ba <- 0   # no directional trios at all -> treated as a tie below (undirected)
+    # majority direction wins, and the losing direction is cleared explicitly;
+    # a tie (including ab == ba == 0) leaves the edge undirected
     if      (ab > ba) { A[a,b] <- 1; A[b,a] <- 0 }
     else if (ba > ab) { A[b,a] <- 1; A[a,b] <- 0 }
     else            { A[a,b] <- 1; A[b,a] <- 1 }
