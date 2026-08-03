@@ -984,8 +984,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   md <- ana$Inferred.Model                # md = the model each trio in ts was classified as, one entry per trio
   ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]  # drop trios with no classification (NA) before using md/ts below
 
-  A <- adjacency                          # copy; changing A below won't change the adjacency matrix in the function that called this one
-  if (clear.tt) A[Tidx, Tidx] <- 0        # majority owns the T-T block (VTT); TTT passes clear.tt = FALSE instead
+  A <- adjacency                          # a copy
+  if (clear.tt) A[Tidx, Tidx] <- 0        # VTT: wipe the whole T-T block first; only pairs the vote approves below get restored. TTT passes clear.tt = FALSE to skip this and leave existing edges alone
 
   lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])  # canonical (lo,hi) so the same pair gets the same key regardless of column order
   key <- paste0(lo, ".", hi)              # one key per Tj-Tk pair; pools all trios that tested it, whatever the third node (Vi or Ti) was
