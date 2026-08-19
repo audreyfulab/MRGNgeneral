@@ -33,8 +33,7 @@ MRGN(
   cl = parallel::getDefaultCluster(),
   chunk.size = NULL,
   verbose = 0L,
-  VTTthresh = 0,
-  TTTthresh = 0,
+  VTTthresh = 0.3,
   seed = NULL
 )
 }
@@ -108,28 +107,15 @@ If NULL (default), no limit is imposed}
 \item{verbose}{Integer, verbosity level. 0 (default) for minimal output, higher values
 for more detailed progress messages}
 
-\item{VTTthresh}{Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
-algorithm runs unchanged. When set to a value in \eqn{(0, 1]}, the T-T block of the
-final adjacency matrix is replaced by a majority-vote procedure over all VTT trios:
-a T-T edge is retained only if the fraction of trios supporting it (via models
-\code{M1.1}, \code{M1.2}, \code{M2.1}, \code{M2.2}, \code{M4}, or \code{Other.1})
-strictly exceeds \code{VTTthresh}, and its direction is determined by majority vote
-among directional models. Values outside \eqn{[0, 1]} trigger a warning and revert
-to \code{0}.}
-
-\item{TTTthresh}{Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
-algorithm runs unchanged for triplets of \code{T}-nodes (\emph{Step} \code{III.2}
-/ \emph{Step} \code{4}). When set to a value in \eqn{(0, 1]}, the direction of
-"candidate trio (2)" triplets (\code{Ti -> Tj - Tk}, where \code{Ti -> Tj} is
-already established and only \code{Tj-Tk} is undirected) is decided by a
-majority-vote procedure over all such triplets sharing the same \code{Tj-Tk} edge:
-the edge is directed only if the fraction of triplets voting \code{M1.1} or
-\code{M2.1} (as opposed to \code{"Other"}) strictly exceeds \code{TTTthresh}, with
-direction set by majority among the \code{M1.1}/\code{M2.1} votes. Unlike
-\code{VTTthresh}, this never removes an edge: \code{Tj-Tk} is known to already
-exist for these triplets, so edges that do not exceed the threshold, or were never
-tested by a "candidate trio (2)" triplet, are left unchanged. Values outside
-\eqn{[0, 1]} trigger a warning and revert to \code{0}.}
+\item{VTTthresh}{Numeric in \eqn{[0, 1]}. Defaults to \code{0.3}: the T-T
+block of the final adjacency matrix is replaced by a majority-vote
+procedure over all VTT trios. A T-T edge is retained only if the fraction
+of trios supporting it (via models \code{M1.1}, \code{M1.2}, \code{M2.1},
+\code{M2.2}, \code{M4}, or \code{Other.1}) strictly exceeds
+\code{VTTthresh}, and its direction is determined by majority vote among
+directional models. Set to \code{0} to run the original MRGN algorithm
+unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
+revert to the default \code{0.3}.}
 
 \item{seed}{Integer, random seed for reproducible results in parallel computing.
 If NULL (default), no seed is set}
