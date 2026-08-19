@@ -35,7 +35,12 @@ get.new.triplet.type.i <- function(x, adjacency) {
                                 0, 1, 0), nrow = 3, byrow = TRUE))) { # Type 2
     return(c(x, 2))
   }
-  else { # Type 3
+  else if (all(Aijk == matrix(c(0,0,0,
+                                1,0,1,
+                                0,1,0), nrow = 3, byrow = TRUE))){ # Type 3
     return(c(x, 3))
   }
+  else {
+    return (c(x, 4))
+    }
 }

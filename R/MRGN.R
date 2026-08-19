@@ -23,7 +23,7 @@
 #'
 #' @param adjacency input adjacency matrix (binary)
 #'
-#' @param scale.data Logical, should the data be scaled (standardized) before processing? 
+#' @param scale.data Logical, should the data be scaled (standardized) before processing?
 #'   Default is TRUE. Only genes and confounders are scaled; variants are not scaled
 #'
 #' @param is.CNA Logical, indicating if a genetic variant is a copy number alteration (CNA).
@@ -31,13 +31,13 @@
 #'
 #' @param alpha Numeric in (0, 0.5), type I error rate for individual tests. Default is 0.01
 #'
-#' @param use.perm Logical, should permutation tests be used? See \link[MRGN]{infer.trio}. 
+#' @param use.perm Logical, should permutation tests be used? See \link[MRGN]{infer.trio}.
 #'   Default is TRUE
 #'
 #' @param gamma Numeric, significance level for permutation tests when \code{use.perm = TRUE}.
 #'   Default is 0.05
 #'
-#' @param nperms Integer, number of permutations to use when \code{use.perm = TRUE}. 
+#' @param nperms Integer, number of permutations to use when \code{use.perm = TRUE}.
 #'   Default is 10000
 #'
 #' @param FDRcontrol Character, FDR control method. One of "bonferroni", "qvalue", or "none".
@@ -46,10 +46,10 @@
 #' @param fdr Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration.
 #'   Only used if \code{FDRcontrol = "qvalue"}. Default is 0.05
 #'
-#' @param lambda Numeric, tuning parameter for pi0 estimation in q-value calculation. 
+#' @param lambda Numeric, tuning parameter for pi0 estimation in q-value calculation.
 #'   If NULL (default), initialized using \code{lambda.step}
 #'
-#' @param lambda.step Numeric in (0, 0.1), step size used to initialize \code{lambda} 
+#' @param lambda.step Numeric in (0, 0.1), step size used to initialize \code{lambda}
 #'   when \code{lambda = NULL}. Default is 0.05
 #'
 #' @param pi0.meth Character, method for pi0 estimation. One of "bootstrap" or "smoother".
@@ -69,7 +69,7 @@
 #'
 #' @param parallel Logical, should computations be parallelized? Default is FALSE
 #'
-#' @param verbose Integer, verbosity level. 0 (default) for minimal output, higher values 
+#' @param verbose Integer, verbosity level. 0 (default) for minimal output, higher values
 #'   for more detailed progress messages
 #'
 #' @param seed Integer, random seed for reproducible results in parallel computing.
@@ -80,28 +80,15 @@
 #' \code{'M2'} trio structures be dropped during adjacency matrix update?
 #' Passed to \link{update.adjacency.matrix}.
 #'
-#' @param VTTthresh Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
-#'   algorithm runs unchanged. When set to a value in \eqn{(0, 1]}, the T-T block of the
-#'   final adjacency matrix is replaced by a majority-vote procedure over all VTT trios:
-#'   a T-T edge is retained only if the fraction of trios supporting it (via models
-#'   \code{M1.1}, \code{M1.2}, \code{M2.1}, \code{M2.2}, \code{M4}, or \code{Other.1})
-#'   strictly exceeds \code{VTTthresh}, and its direction is determined by majority vote
-#'   among directional models. Values outside \eqn{[0, 1]} trigger a warning and revert
-#'   to \code{0}.
-#'
-#' @param TTTthresh Numeric in \eqn{[0, 1]}. When \code{0} (default), the original MRGN
-#'   algorithm runs unchanged for triplets of \code{T}-nodes (\emph{Step} \code{III.2}
-#'   / \emph{Step} \code{4}). When set to a value in \eqn{(0, 1]}, the direction of
-#'   "candidate trio (2)" triplets (\code{Ti -> Tj - Tk}, where \code{Ti -> Tj} is
-#'   already established and only \code{Tj-Tk} is undirected) is decided by a
-#'   majority-vote procedure over all such triplets sharing the same \code{Tj-Tk} edge:
-#'   the edge is directed only if the fraction of triplets voting \code{M1.1} or
-#'   \code{M2.1} (as opposed to \code{"Other"}) strictly exceeds \code{TTTthresh}, with
-#'   direction set by majority among the \code{M1.1}/\code{M2.1} votes. Unlike
-#'   \code{VTTthresh}, this never removes an edge: \code{Tj-Tk} is known to already
-#'   exist for these triplets, so edges that do not exceed the threshold, or were never
-#'   tested by a "candidate trio (2)" triplet, are left unchanged. Values outside
-#'   \eqn{[0, 1]} trigger a warning and revert to \code{0}.
+#' @param VTTthresh Numeric in \eqn{[0, 1]}. Defaults to \code{0.3}: the T-T
+#'   block of the final adjacency matrix is replaced by a majority-vote
+#'   procedure over all VTT trios. A T-T edge is retained only if the fraction
+#'   of trios supporting it (via models \code{M1.1}, \code{M1.2}, \code{M2.1},
+#'   \code{M2.2}, \code{M4}, or \code{Other.1}) strictly exceeds
+#'   \code{VTTthresh}, and its direction is determined by majority vote among
+#'   directional models. Set to \code{0} to run the original MRGN algorithm
+#'   unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
+#'   revert to the default \code{0.3}.
 #'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
 #' \link[parallel]{parLapply} (when supplied).
@@ -192,8 +179,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   cl = parallel::getDefaultCluster(),
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
-                  VTTthresh = 0,
-                  TTTthresh = 0,
+                  VTTthresh = 0.3,
                   seed = NULL) { # seed for reproducible results in parallel computing
   # ============================================================================
   # Save the call to MRGN
@@ -228,13 +214,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   eval(check.mrgn.args())
 
   if (!is.numeric(VTTthresh) || length(VTTthresh) != 1 || VTTthresh < 0 || VTTthresh > 1) {
-    warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
-    VTTthresh <- 0
-  }
-
-  if (!is.numeric(TTTthresh) || length(TTTthresh) != 1 || TTTthresh < 0 || TTTthresh > 1) {
-    warning("TTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
-    TTTthresh <- 0
+    warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.3.")
+    VTTthresh <- 0.3
   }
 
   # ============================================================================
@@ -258,6 +239,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   ### Step 3: List trios involving genetic variants and direct related edges
   # ----------------------------------------------------------------------------
   ## Step 3.1: Identify target trios, i.e. generate trio list & Bind trios identifiers as rows
+  ## a [Vi,Tj,Tk] trio is formed exactly when Vi–Tj is an existing edge, and Tj–Tk is an existing edge
+  ## (either because Vi–Tk also exists directly, or because Tk connects to Vi only indirectly through Tj)
   if (verbose) {
     cat("\n      # Generating an initial list of trios with genetic variants. \n")
   }
@@ -927,26 +910,6 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
 
   }
 
-  # Apply TTTthresh majority vote on candidate-trio-(2) T-T edges, i.e. triplets
-  # [Ti,Tj,Tk] where Ti --> Tj is already established and only Tj-Tk is undirected.
-  # Unlike VTTthresh, existence of Tj-Tk is never in question here (it is a
-  # precondition for the triplet to have been formed), so edges below threshold,
-  # or never tested by a type-2 triplet, are left untouched (clear.tt = FALSE).
-  if (TTTthresh > 0 && !is.null(triplet.set) && !is.null(triplet.analysis)) {
-    type2 <- triplet.set[,4] == 2
-    if (any(type2)) {
-      Tidx <- (n_v + 1L):(n_v + n_t)
-      adjacency <- .majority_adj(adjacency = adjacency,
-                                 ts        = triplet.set[type2,, drop = FALSE],
-                                 ana       = triplet.analysis[type2,, drop = FALSE],
-                                 Tidx      = Tidx,
-                                 keep      = c("M1.1", "M2.1"),
-                                 thresh    = TTTthresh,
-                                 clear.tt  = FALSE)
-      Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
-    }
-  }
-
   # Report on the presence of undirected edges in the final network
   if (verbose) {
     if (Not.fully.directed)
@@ -981,7 +944,13 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
 .majority_adj <- function(adjacency, ts, ana, Tidx,        # Tidx = which rows/cols of adjacency are T-nodes
                           keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
                           thresh = 0.5, clear.tt = TRUE) {
-  md <- ana$Inferred.Model                # md = the model each trio in ts was classified as, one entry per trio
+  # md is the classified model for every trio, one entry per trio (e.g.
+  # "M1.1"). E.g. idx <- which(key == "103.165") finds all 13 trios that
+  # tested the T3-T65 pair, and md[idx] gives their 13 classifications
+  # (2 "M1.1", 11 "Other.1"). These per-trio labels are what the existence
+  # check (md %in% keep, below) and the direction vote (further below) both
+  # work from.
+  md <- ana$Inferred.Model
   ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]  # drop trios with no classification (NA) before using md/ts below
 
   A <- adjacency                          # a copy
