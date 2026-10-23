@@ -24,7 +24,9 @@ analyse.trio.set(
   nperms,
   verbose,
   cl = NULL,
-  chunk.size = NULL
+  chunk.size = NULL,
+  V.trioconfounders.filter = TRUE,
+  V.filter.cutoff = 0.2
 )
 }
 \arguments{

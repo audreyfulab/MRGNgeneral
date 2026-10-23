@@ -19,12 +19,13 @@ MRGN(
   use.perm = FALSE,
   gamma = 0.05,
   nperms = 10000,
-  FDRcontrol = c("bonferroni", "qvalue", "none"),
+  FDRcontrol = c("BH", "bonferroni", "qvalue", "none"),
   fdr = 0.05,
   lambda = NULL,
   lambda.step = 0.05,
   pi0.meth = c("bootstrap", "smoother"),
   stringent = TRUE,
+  analyse.trios = TRUE,
   analyse.triplets = TRUE,
   solve.conflicts = TRUE,
   method = "conservative",
@@ -34,6 +35,8 @@ MRGN(
   chunk.size = NULL,
   verbose = 0L,
   VTTthresh = 0.3,
+  V.trioconfounders.filter = TRUE,
+  V.filter.cutoff = 0.2,
   seed = NULL
 )
 }
@@ -68,11 +71,15 @@ Default is 0.05}
 \item{nperms}{Integer, number of permutations to use when \code{use.perm = TRUE}.
 Default is 10000}
 
-\item{FDRcontrol}{Character, FDR control method. One of "bonferroni", "qvalue", or "none".
-Default is "bonferroni"}
+\item{FDRcontrol}{Character, multiple-testing correction applied to the trio
+(and triplet) analyses at each iteration. One of "BH" (Benjamini-Hochberg),
+"bonferroni" (or any other method accepted by \link[stats]{p.adjust}),
+"qvalue", or "none". Default is "BH" (since 2026-10-22; previously "bonferroni")}
 
-\item{fdr}{Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration.
-Only used if \code{FDRcontrol = "qvalue"}. Default is 0.05}
+\item{fdr}{Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration:
+the rejection threshold for q-values (\code{FDRcontrol = "qvalue"}) or for
+adjusted p-values (\code{FDRcontrol = "BH"}, \code{"bonferroni"}, etc.).
+Not used if \code{FDRcontrol = "none"}. Default is 0.05}
 
 \item{lambda}{Numeric, tuning parameter for pi0 estimation in q-value calculation.
 If NULL (default), initialized using \code{lambda.step}}
@@ -87,8 +94,13 @@ Default is "bootstrap"}
 \code{'M2'} trio structures be dropped during adjacency matrix update?
 Passed to \link{update.adjacency.matrix}.}
 
-\item{analyse.triplets}{Logical, should triplets (trios with no genetic variants) be analyzed?
-Default is TRUE}
+\item{analyse.trios}{Logical, should Step 3 (VTT trios, followed by the
+\code{VTTthresh} majority vote; see \link{MRGN.VTT}) be run? Default is TRUE.
+With \code{FALSE}, Step 4 (if requested) runs directly on \code{adjacency}.
+Added 2026-10-22.}
+
+\item{analyse.triplets}{Logical, should triplets (trios with no genetic variants) be analyzed
+(Step 4; see \link{MRGN.TTT})? Default is TRUE}
 
 \item{solve.conflicts}{Logical, should conflicts in edge directions be resolved?
 Default is TRUE}
@@ -117,11 +129,34 @@ directional models. Set to \code{0} to run the original MRGN algorithm
 unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
 revert to the default \code{0.3}.}
 
+\item{V.trioconfounders.filter}{logical, should each trio's confounder set be
+dynamically filtered, right before that trio's analysis, to exclude any
+candidate confounder correlated with that trio's OWN V-node (instrument)?
+Unlike the (separate, \link{get.conf.sets}-level) Tcandidates filter, which
+statically restricts confounder selection per T-node using that T-node's
+overall set of selected V-confounders, this filter is recomputed fresh for
+every trio, using the specific V anchoring that one trio. Defaults to
+\code{TRUE} (since 2026-10-22; previously \code{FALSE}). Set to \code{FALSE}
+to leave confounder sets completely unchanged. Added 2026-09-17.}
+
+\item{V.filter.cutoff}{numeric, the \code{|cor(Vi, confounder)|} cutoff
+used when \code{V.trioconfounders.filter = TRUE}. Ignored otherwise. Defaults
+to \code{0.2} (since 2026-10-22; previously \code{0.35}). Added 2026-09-17.}
+
 \item{seed}{Integer, random seed for reproducible results in parallel computing.
 If NULL (default), no seed is set}
 }
 \description{
 Infer a causal network/graph with directed and undirected edges from observational data.
+}
+\details{
+Since 2026-10-22, \code{MRGN} checks its arguments once and then calls the
+workers behind \link{MRGN.VTT} (Step 3) and \link{MRGN.TTT} (Step 4) in turn.
+Steps 3 and 4 keep separate iteration counters, each limited by \code{maxiter}.
+The returned \code{niter} is \code{1 +} (extra Step 3 iterations) \code{+}
+(extra Step 4 iterations). The output also contains \code{VTT.adjacency.prevote}
+and \code{VTT.adjacency}, the skeleton after Step 3 before and after the
+\code{VTTthresh} majority vote (\code{NULL} if \code{analyse.trios = FALSE}).
 }
 \examples{
 ## Run MRGN on the 'networkA11' data
@@ -157,6 +192,6 @@ MRGNfit <- MRGN(data = networkA11$data,
 }
 }
 \seealso{
-\link[MRGN]{infer.trio} for inferring edges in small networks of one
+\link{MRGN.VTT}, \link{MRGN.TTT}; \link[MRGN]{infer.trio} for inferring edges in small networks of one
 genetic variant and only two genes.
 }

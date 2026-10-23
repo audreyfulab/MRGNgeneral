@@ -1,3 +1,36 @@
+# Internal: set up parallel computing for MRGN(), MRGN.VTT() and MRGN.TTT()
+# (moved out of MRGN() on 2026-10-22 so the three functions share it)
+.mrgn.setup.parallel <- function (parallel, cl, chunk.size, seed) {
+  stopifnot(is.logical(parallel))
+  if (parallel[1]) {
+    if (is.null(cl)) {
+      # Use option cl.cores to choose an appropriate cluster size
+      cl <- parallel::makeCluster(getOption("cl.cores", 2L))
+    }
+    # Set up cluster with library paths, seed, and required packages
+    setup_cluster(cl, packages = c("MRGN", "ppcor"), seed = seed)
+    if (!is.null(chunk.size)) {
+      stopifnot(is.numeric(chunk.size))
+      chunk.size <- chunk.size[1]
+      stopifnot(chunk.size > 0)
+      chunk.size <- ceiling(chunk.size)
+    }
+  }
+  else {
+    cl <- NULL
+  }
+  list(cl = cl, chunk.size = chunk.size)
+}
+
+# Internal: validate VTTthresh (shared by MRGN() and MRGN.VTT())
+.mrgn.check.VTTthresh <- function (VTTthresh) {
+  if (!is.numeric(VTTthresh) || length(VTTthresh) != 1 || VTTthresh < 0 || VTTthresh > 1) {
+    warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.3.")
+    VTTthresh <- 0.3
+  }
+  VTTthresh
+}
+
 # An internal function to generate the code to check MRGN arguments
 # Also saves inputs and format some arguments for the MRGN algorithm
 check.mrgn.args <- function() {

@@ -11,21 +11,25 @@ get.conf.sets(
   n_t,
   n_c,
   skip.V = FALSE,
-  skip.T = FALSE,
+  skip.T = TRUE,
   skip.C = FALSE,
+  skip.UWZsplit = TRUE,
   T.measure = c("partial", "marginal"),
   C.measure = T.measure,
   blocksize = 10,
   FDRcontrol = c("qvalue", "bonferroni", "none"),
   V.FDRcontrol = FDRcontrol,
   T.FDRcontrol = FDRcontrol,
-  C.FDRcontrol = FDRcontrol,
+  C.FDRcontrol = "BH",
   Q.FDRcontrol = FDRcontrol,
   adjust_by = c("individual", "all", "none"),
   V.adjust_by = adjust_by,
   T.adjust_by = adjust_by,
   C.adjust_by = adjust_by,
   Q.adjust_by = adjust_by,
+  VTcorselect = TRUE,
+  VTcor.cutoff = 0.2,
+  Tcandidates.active = FALSE,
   T.filter = FALSE,
   fdr = 0.05,
   lambda = 0.05,
@@ -62,7 +66,10 @@ genomic network. The number of columns of \code{data} must be \code{n_t+n_v+n_c}
 \code{V}-nodes, \code{T}-nodes, or \code{C}-nodes be skipped? If \code{TRUE},
 the corresponding selection is skipped and an empty list is returned. This can be
 useful when a dataset is expanded with only one or two types of nodes, and there
-is no need to select again confounding variables from the set(s) that remained unchanged.}
+is no need to select again confounding variables from the set(s) that remained unchanged.
+\code{skip.T} defaults to \code{TRUE} (since 2026-10-22): no \code{T}-node
+confounders are selected, so each \code{T}-node's confounder set consists of
+selected \code{V}-nodes and selected \code{C}-nodes only.}
 
 \item{T.measure, C.measure}{characters, indicating the association measures to
 be used for different selections. One of \code{"partial"} for conditional
@@ -78,8 +85,13 @@ but may be slower}
 the FDR control methods to be used for different selections.
 One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 \code{"bonferroni"} (see \link[stats]{p.adjust}).
-If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
-\code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.}
+If any of \code{T.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
+\code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
+\code{C.FDRcontrol} does not inherit \code{FDRcontrol}: it defaults to \code{"BH"}
+(since 2026-10-22). In the \code{C}-node selection stage, FDR-controlling
+\link[stats]{p.adjust} methods (\code{"BH"}, \code{"BY"}, \code{"fdr"}) reject at
+adjusted p-value \code{<= fdr}; other \link[stats]{p.adjust} methods (e.g.
+\code{"bonferroni"}) reject at adjusted p-value \code{<= alpha}.}
 
 \item{adjust_by, V.adjust_by, T.adjust_by, C.adjust_by, Q.adjust_by}{character indicating the
 adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
@@ -87,6 +99,18 @@ adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
 and \code{"all"} (adjust all p-values for all genes at once).
 If any of \code{T.adjust_by}, \code{C.adjust_by}, \code{V.adjust_by}, \code{Q.adjust_by} is missing,
 \code{adjust_by} is used, otherwise \code{adjust_by} is ignored.}
+
+\item{VTcorselect}{logical, should \code{V}-node selection use a raw
+correlation cutoff (\code{|cor(V, T)| >= VTcor.cutoff}) instead of the
+marginal t-test + FDR correction? Defaults to \code{TRUE} (since 2026-10-22),
+the same rule \link{get.initial.skeleton} uses for \code{V}-\code{T} edges.
+Set to \code{FALSE} to use the marginal t-test + FDR correction
+(\code{V.FDRcontrol}, \code{V.adjust_by}) instead. Added 2026-09-09.}
+
+\item{VTcor.cutoff}{numeric, the \code{|cor(V, T)|} cutoff used for
+\code{V}-node selection when \code{VTcorselect = TRUE}. Ignored otherwise.
+Defaults to \code{0.2}, matching the default \code{threshold_v} of
+\link{get.initial.skeleton}. Added 2026-09-09.}
 
 \item{T.filter}{logical, should \code{T}-node selection attempt to filter out
 potential child \code{T}-nodes from the selected pool for each \code{T}-node?
@@ -166,15 +190,19 @@ For a graph \code{G(V, T, C)} where \code{V} is the set of genetic variants,
 confounding variables in the network; \code{get.conf.sets} performs
 three independent tasks.
 \describe{
-\item{V-node selection:}{ the \emph{marginal} association between each gene (\code{T}-node) and
-each variant (\code{V}-node) is tested using a \emph{t}-test. If none of \code{V.adjust_by}
+\item{V-node selection:}{ by default (\code{VTcorselect = TRUE}), a variant
+(\code{V}-node) is selected for a gene (\code{T}-node) iff
+\code{|cor(V, T)| >= VTcor.cutoff}, with no test or multiple-testing correction.
+With \code{VTcorselect = FALSE}, the \emph{marginal} association between each gene and
+each variant is instead tested using a \emph{t}-test. If none of \code{V.adjust_by}
 and \code{adjust_by} is \code{'none'}, then either all the tests involving a
 particular \code{T}-node (when \code{adjust_by = 'individual'}), or all the tests
 involving all \code{T}-nodes (when \code{adjust_by = 'all'}) are adjusted for
 multiple comparison using the method \code{V.FDRcontrol}. All \code{V}-nodes
 significantly associated with a particular \code{T}-node are then retained as
 selected confounders for the \code{T}-node.}
-\item{T-node selection:}{ the process is similar to \emph{V-node selection} except
+\item{T-node selection:}{ skipped by default (\code{skip.T = TRUE}).
+When enabled, the process is similar to the test-based \emph{V-node selection} except
 that here, the associations between each \code{T}-node and all other \code{T}-nodes
 in the network are tested, and the association measure between two \code{T}-nodes can
 be partial (the default) or marginal correlation (specified via \code{T.measure}).

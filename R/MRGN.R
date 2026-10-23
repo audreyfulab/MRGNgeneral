@@ -59,8 +59,13 @@
 #' @param pi0.meth Character, method for pi0 estimation. One of "bootstrap" or "smoother".
 #'   Default is "bootstrap"
 #'
-#' @param analyse.triplets Logical, should triplets (trios with no genetic variants) be analyzed?
-#'   Default is TRUE
+#' @param analyse.trios Logical, should Step 3 (VTT trios, followed by the
+#'   \code{VTTthresh} majority vote; see \link{MRGN.VTT}) be run? Default is TRUE.
+#'   With \code{FALSE}, Step 4 (if requested) runs directly on \code{adjacency}.
+#'   Added 2026-10-22.
+#'
+#' @param analyse.triplets Logical, should triplets (trios with no genetic variants) be analyzed
+#'   (Step 4; see \link{MRGN.TTT})? Default is TRUE
 #'
 #' @param solve.conflicts Logical, should conflicts in edge directions be resolved?
 #'   Default is TRUE
@@ -111,7 +116,16 @@
 #' used when \code{V.trioconfounders.filter = TRUE}. Ignored otherwise. Defaults
 #' to \code{0.2} (since 2026-10-22; previously \code{0.35}). Added 2026-09-17.
 #'
-#' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one
+#' @details
+#' Since 2026-10-22, \code{MRGN} checks its arguments once and then calls the
+#' workers behind \link{MRGN.VTT} (Step 3) and \link{MRGN.TTT} (Step 4) in turn.
+#' Steps 3 and 4 keep separate iteration counters, each limited by \code{maxiter}.
+#' The returned \code{niter} is \code{1 +} (extra Step 3 iterations) \code{+}
+#' (extra Step 4 iterations). The output also contains \code{VTT.adjacency.prevote}
+#' and \code{VTT.adjacency}, the skeleton after Step 3 before and after the
+#' \code{VTTthresh} majority vote (\code{NULL} if \code{analyse.trios = FALSE}).
+#'
+#' @seealso \link{MRGN.VTT}, \link{MRGN.TTT}; \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
 
 #' @export
@@ -190,6 +204,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   lambda.step = 0.05, # in (0, .1); Used to initialize "lambda" when lambda = NULL
                   pi0.meth = c("bootstrap", "smoother"),
                   stringent = TRUE,
+                  analyse.trios = TRUE,      # NEW (2026-10-22): run Step 3 (VTT)?
                   analyse.triplets = TRUE,
                   solve.conflicts = TRUE, # Just used for testing, to be removed?
                   method = "conservative",
@@ -218,733 +233,67 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   # ----------------------------------------------------------------------------
   mrgncl <- match.call()
 
-  # ============================================================================
-  # Parallelize computations or not?
-  # ----------------------------------------------------------------------------
-  stopifnot(is.logical(parallel))
-  if (parallel[1]) {
-    if (is.null(cl)) {
-      # Use option cl.cores to choose an appropriate cluster size
-      cl <- parallel::makeCluster(getOption("cl.cores", 2L))
-    }
-    # Set up cluster with library paths, seed, and required packages
-    setup_cluster(cl, packages = c("MRGN", "ppcor"), seed = seed)
-    if (!is.null(chunk.size)) {
-      stopifnot(is.numeric(chunk.size))
-      chunk.size <- chunk.size[1]
-      stopifnot(chunk.size > 0)
-      chunk.size <- ceiling(chunk.size)
-    }
-  }
-  else {
-    cl <- NULL
-  }
+  par.setup <- .mrgn.setup.parallel(parallel = parallel, cl = cl,
+                                    chunk.size = chunk.size, seed = seed)
+  cl <- par.setup$cl
+  chunk.size <- par.setup$chunk.size
 
   # ============================================================================
-  # Check arguments & Pre-process some inputs
+  # Check arguments & Pre-process some inputs (done once for both steps)
   # ----------------------------------------------------------------------------
   eval(check.mrgn.args())
-
-  if (!is.numeric(VTTthresh) || length(VTTthresh) != 1 || VTTthresh < 0 || VTTthresh > 1) {
-    warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.3.")
-    VTTthresh <- 0.3
-  }
+  VTTthresh <- .mrgn.check.VTTthresh(VTTthresh)
 
   # ============================================================================
-  ### Save the current Adjacency matrix
-  old.adjacency <- adjacency
-
-  # Initialize some outputs as empty vector/lists
-  trio.analysis <- NULL
-  dropped.edges <- added.edges <- NULL # list()
-  Qtrio.set <- Qtrio.analysis <- NULL
-  triplet.set <- triplet.analysis <- NULL
-  Qtriplet.set <- Qtriplet.analysis <- NULL
-  iter.nb.triplets <- iter.nb.Qtriplets <- NULL
-
-  # Initialize iteration-wise counters/indicators
-  new.edges <- NULL # indicator of trios with new added edges at an iteration (length = NROW(trio.set))
-  new_edge_added <- FALSE # scalar indicator of at least one new edge added # new_edge_added <- any(new.edges)
-  nb.new_edges <- 0 # total number of new edges added into the network at an iteration
-  iter <- 1
-
-  ### Step 3: List trios involving genetic variants and direct related edges
+  # Since 2026-10-22, Step 3 (VTT trios + VTTthresh majority vote) and Step 4
+  # (TTT triplets) live in R/MRGN.VTT.R and R/MRGN.TTT.R; MRGN() calls their
+  # internal workers in turn. Each step can also be run on its own with the
+  # exported MRGN.VTT() / MRGN.TTT().
   # ----------------------------------------------------------------------------
-  ## Step 3.1: Identify target trios, i.e. generate trio list & Bind trios identifiers as rows
-  ## a [Vi,Tj,Tk] trio is formed exactly when Vi–Tj is an existing edge, and Tj–Tk is an existing edge
-  ## (either because Vi–Tk also exists directly, or because Tk connects to Vi only indirectly through Tj)
-  if (verbose) {
-    cat("\n      # Generating an initial list of trios with genetic variants. \n")
-  }
-  trio.set <- enumerate.trios(i = 1:n_v, adjacency = adjacency,
-                              n_t = n_t, n_v = n_v, n_q = n_q,
-                              VTT = TRUE,
-                              cl = cl,
-                              chunk.size = chunk.size)
-  trio.set <- do.call('rbind', trio.set)
+  vtt <- ttt <- NULL
+  added.edges <- dropped.edges <- NULL
 
-  # Number of initial trios
-  nb.trios <- NROW(trio.set)
-
-  if (verbose) {
-    cat(paste0("          * ",
-               if (nb.trios == 0) "zero trio"
-               else if (nb.trios == 1) "one [Vi,Tj,Tk] trio"
-               else paste0(nb.trios, " [Vi,Tj,Tk] trios"),
-               " generated. \n"))
+  ### Step 3: VTT trio analysis (+ VTTthresh majority vote)
+  if (analyse.trios) {
+    vtt <- .MRGN.VTT.core(data = data, adjacency = adjacency,
+                          n_v = n_v, n_t = n_t, n_q = n_q, Qlabels = Qlabels,
+                          confounders = confounders,
+                          alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
+                          lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
+                          use.perm = use.perm, gamma = gamma, is.CNA = is.CNA, nperms = nperms,
+                          stringent = stringent, solve.conflicts = solve.conflicts,
+                          method = method, maxiter = maxiter, VTTthresh = VTTthresh,
+                          V.trioconfounders.filter = V.trioconfounders.filter,
+                          V.filter.cutoff = V.filter.cutoff,
+                          verbose = verbose, cl = cl, chunk.size = chunk.size)
+    adjacency <- vtt$adjacency
+    added.edges <- vtt$added.edges
+    dropped.edges <- vtt$dropped.edges
   }
 
-  ## Step 3.2-3.3: Determine the directed structure for each trio and update adjacency
-  if (nb.trios > 0) {
-    ## Step 3.2: Determine the directed structure for each trio
-    if (verbose)
-      cat("      # Inferring the causal network for each [Vi,Tj,Tk] trio. \n")
-    trio.analysis <- analyse.trio.set (trio.set, nb.trios = nb.trios, Qlabels = Qlabels,
-                                       alpha = alpha, FDRcontrol = FDRcontrol,
-                                       fdr = fdr, lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                       data = data, confounders = confounders, n_t = n_t, n_v = n_v,
-                                       use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
-                                       nperms = nperms, verbose = verbose,
-                                       V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
-                                       cl = cl, chunk.size = chunk.size)
-
-    ## Step 3.3: Update the adjacency matrix
-    if (verbose) {
-      cat(paste0("      # Updating the adjacency matrix: adding edge ",
-                 if (nb.trios == 1) "direction for one [Vi,Tj,Tk] trio. \n"
-                 else "directions for ", nb.trios, " [Vi,Tj,Tk] trios. \n"))
-    }
-    update.object <- update.adjacency.matrix (adjacency = adjacency, n_t = n_t, n_v = n_v, n_q = n_q,
-                                              trio.set = trio.set,
-                                              inferred.models = trio.analysis$Inferred.Model,
-                                              stringent = stringent, add.edges = TRUE,
-                                              solve.conflicts = solve.conflicts,
-                                              method = method, cl = cl, chunk.size = chunk.size)
-    # Update dropped.edges and added.edges
-    added.edges <- update.object$added.edges
-    dropped.edges <- update.object$dropped.edges
-
-    # Report conflicts, if any
-    if (verbose & solve.conflicts) {
-      if (update.object$nb.conflicts)
-        cat(paste0("          * ",
-                   if (update.object$nb.conflicts == 1) "one conflict detected"
-                   else paste0(update.object$nb.conflicts, " conflicts detected"),
-                   " and handled with 'method = ", method, "'. \n"))
-    }
-
-    # Logical vector indicating trios in which new edges were added
-    nb.new_edges <- update.object$nb.new_edges
-    new.edges <- (update.object$new.edges == 1) & (nb.new_edges > 0)
-
-    # Check if new edges were added from [Vi,Tj,Tk] trio analysis
-    new_edge_added <- any(new.edges)
-    if (verbose & new_edge_added) {
-      cat(paste0("          * ",
-                 if (nb.new_edges == 1) "one new edge"
-                 else paste0(nb.new_edges, " new edges"),
-                 " added into the network. \n"))
-    }
-
-    # Save the new adjacency
-    adjacency <- update.object$adjacency
+  ### Step 4: TTT triplet analysis
+  if (analyse.triplets) {
+    ttt <- .MRGN.TTT.core(data = data, adjacency = adjacency,
+                          n_v = n_v, n_t = n_t, n_q = n_q,
+                          confounders = confounders,
+                          alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
+                          lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
+                          stringent = stringent, solve.conflicts = solve.conflicts,
+                          method = method, maxiter = maxiter,
+                          added.edges = added.edges, dropped.edges = dropped.edges,
+                          verbose = verbose, cl = cl, chunk.size = chunk.size)
+    adjacency <- ttt$adjacency
+    added.edges <- ttt$added.edges
+    dropped.edges <- ttt$dropped.edges
   }
 
-  ## Step 3.4: Generating an initial list of trios involving a genetic variant and a Q-node
-  if (n_q > 0) {
-    if (verbose) {
-      cat("\n      # Generating an initial list of [Vi,Tj,Qk] trios. \n")
-    }
-    Qtrio.set <- enumerate.trios(i = 1:n_v,
-                                 adjacency = adjacency,
-                                 n_t = n_t, n_v = n_v,
-                                 n_q = n_q,
-                                 VTT = FALSE,
-                                 cl = cl, chunk.size = chunk.size)
-    Qtrio.set <- do.call('rbind', Qtrio.set)
-
-    # Number of initial trios
-    nb.Qtrios <- NROW(Qtrio.set)
-
-    if (verbose) {
-      cat(paste0("          * ",
-                 if (nb.Qtrios == 0) "zero trio"
-                 else if (nb.Qtrios == 1) "one [Vi,Tj,Qk] trio"
-                 else paste0(nb.Qtrios, " [Vi,Tj,Qk] trios"),
-                 " generated. \n"))
-    }
-
-    if (nb.Qtrios > 0) {
-      # Step 3.5: Determine the directed structure for each trio
-      if (verbose)
-        cat("      # Inferring the causal network for each trio. \n")
-      Qtrio.analysis <- analyse.trio.set (Qtrio.set, nb.trios = nb.Qtrios, Qlabels = Qlabels,
-                                          alpha = alpha, FDRcontrol = FDRcontrol,
-                                          fdr = fdr, lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                          data = data, confounders = confounders, n_t = n_t, n_v = n_v,
-                                          use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
-                                          nperms = nperms, verbose = verbose,
-                                          V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
-                                          cl = cl, chunk.size = chunk.size)
-
-      ## Step 3.6: Update the adjacency matrix
-      if (verbose) {
-        cat(paste0("      # Updating the adjacency matrix: adding edge ",
-                   if (nb.Qtrios == 1) "direction for one [Vi,Tj,Qk] trio. \n"
-                   else "directions for ", nb.Qtrios, " [Vi,Tj,Qk] trios. \n"))
-      }
-      Qupdate.object <- update.adjacency.matrix (adjacency = adjacency,
-                                                 n_t = n_t, n_v = n_v, n_q = n_q,
-                                                 trio.set = Qtrio.set,
-                                                 inferred.models = Qtrio.analysis$Inferred.Model,
-                                                 stringent = stringent, add.edges = FALSE,
-                                                 solve.conflicts = solve.conflicts, method = method,
-                                                 added.edges = added.edges, dropped.edges = dropped.edges,
-                                                 cl = cl, chunk.size = chunk.size)
-      dropped.edges <- Qupdate.object$dropped.edges
-
-      # Update adjacency
-      adjacency <- Qupdate.object$adjacency
-    }
-  }
-  # ----------------------------------------------------------------------------
-
-  ## Iterate Step 3 each time new edges are added (and the network is not fully directed)
-  # Indicator of the presence of undirected edges in the updated network
+  # Indicator of the presence of undirected edges in the final network
   Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
 
-  # Number of [Vi,Tj,Tk] trios generated at each iteration
-  iter.nb.trios <- nb.trios
-
-  # Number of [Vi,Tj,Qk] trios generated at each iteration
-  iter.nb.Qtrios <- if (n_q > 0) nb.Qtrios
-
-  # Initialize the number of new trios to nb.trios
-  nb.new.trios <- nb.trios
-
-  while ((new_edge_added & Not.fully.directed) & iter < maxiter) {
-    ## Step 3.1: Form additional trios
-    if (verbose) {
-      cat("\n      # Generating additional [Vi,Tj,Tk] trios. \n")
-    }
-    new.trio.set <- enumerate.new.trios (trio.set = trio.set,
-                                         new.edges = c(rep(FALSE, nb.trios - nb.new.trios),
-                                                       new.edges),
-                                         old.adjacency = old.adjacency, adjacency = adjacency,
-                                         n_t = n_t, n_v = n_v, n_q = n_q,
-                                         VTT = TRUE,
-                                         cl = cl, chunk.size = chunk.size)
-
-    # Stop if no new trio generated
-    nb.new.trios <- NROW(new.trio.set)
-    if (nb.new.trios == 0) {
-      new_edge_added <- FALSE
-      if (verbose) {
-        cat("          * no additional [Vi,Tj,Tk] trio found.")
-      }
-
-      break
-    }
-
-    if (verbose) {
-      cat(paste0("          * ",
-                 if (nb.new.trios == 1) "one new [Vi,Tj,Tk] trio"
-                 else paste0(nb.new.trios, " new [Vi,Tj,Tk] trios"),
-                 " generated. \n"))
-    }
-
-    # Save the current Adjacency matrix (at iter)
-    old.adjacency <- adjacency
-
-    # iteration counter
-    iter <- iter + 1
-
-    ## Step 3.2: Determine the directed structure for each trio
-    if (verbose) {
-      cat(paste0("      # Inferring the causal network for each new [Vi,Tj,Tk] trio (iteration ",
-                 iter, "). \n"))
-    }
-    new.trio.analysis <- analyse.trio.set (new.trio.set, nb.trios = nb.new.trios, Qlabels = Qlabels,
-                                           alpha = alpha, FDRcontrol = FDRcontrol,
-                                           fdr = fdr, lambda = lambda,
-                                           lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                           data = data, confounders = confounders, n_t = n_t, n_v = n_v,
-                                           use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
-                                           nperms = nperms, verbose = verbose,
-                                           V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
-                                           cl = cl, chunk.size = chunk.size)
-
-    ## Step 3.3: Update the adjacency matrix
-    if (verbose) {
-      cat(paste0("      # Updating the adjacency matrix: adding edge ",
-                 if (nb.new.trios == 1) "direction for one [Vi,Tj,Tk] trio. \n"
-                 else "directions for ", nb.new.trios, " [Vi,Tj,Tk] trios. \n"))
-    }
-    update.object <- update.adjacency.matrix (adjacency = adjacency,
-                                              n_t = n_t, n_v = n_v, n_q = n_q,
-                                              trio.set = new.trio.set,
-                                              inferred.models = new.trio.analysis$Inferred.Model,
-                                              stringent = stringent, add.edges = TRUE,
-                                              solve.conflicts = solve.conflicts, method = method,
-                                              added.edges = added.edges,
-                                              dropped.edges = dropped.edges,
-                                              cl = cl, chunk.size = chunk.size)
-
-    # Update dropped.edges and added.edges
-    added.edges <- update.object$added.edges
-    dropped.edges <- update.object$dropped.edges
-
-    # Report conflicts, if any
-    if (verbose & solve.conflicts) {
-      if (update.object$nb.conflicts)
-        cat(paste0("          * ",
-                   if (update.object$nb.conflicts == 1) "one conflict detected"
-                   else paste0(update.object$nb.conflicts, " conflicts detected"),
-                   " and handled with 'method = ", method, "'. \n"))
-    }
-
-    # Logical vector indicating trios in which new edges were added
-    nb.new_edges <- update.object$nb.new_edges
-    new.edges <- (update.object$new.edges == 1) & (nb.new_edges > 0)
-
-    # Check if new edges were added from [V,T1,T2] trio analysis
-    new_edge_added <- any(new.edges)
-    if (verbose & new_edge_added) {
-      cat(paste0("          * ",
-                 if (nb.new_edges == 1) "one new edge"
-                 else paste0(nb.new_edges, " new edges"),
-                 " added into the network. \n"))
-    }
-
-    # Save the new adjacency
-    adjacency <- update.object$adjacency
-
-    ## Step 3.4: Generating a list of trios involving a genetic variant and a Q-node
-    if (n_q > 0) {
-      if (verbose) {
-        cat("\n      # Generating additional [Vi,Tj,Qk] trios. \n")
-      }
-
-      new.Qtrio.set <- enumerate.new.trios (trio.set = new.trio.set,
-                                            new.edges = new.edges,
-                                            old.adjacency = old.adjacency, adjacency = adjacency,
-                                            n_t = n_t, n_v = n_v, n_q = n_q,
-                                            VTT = FALSE,
-                                            Qtrio.set = Qtrio.set,
-                                            cl = cl, chunk.size = chunk.size)
-
-      # Number of initial trios
-      nb.new.Qtrios <- NROW(new.Qtrio.set)
-
-      if (verbose) {
-        cat(paste0("          * ",
-                   if (nb.new.Qtrios == 0) "zero new trio"
-                   else if (nb.new.Qtrios == 1) "one new [Vi,Tj,Qk] trio"
-                   else paste0(nb.new.Qtrios, " new [Vi,Tj,Qk] trios"),
-                   " generated. \n"))
-      }
-
-      if (nb.new.Qtrios > 0) {
-        # Step 3.5: Determine the directed structure for each trio
-        if (verbose)
-          cat("      # Inferring the causal network for each trio. \n")
-        new.Qtrio.analysis <- analyse.trio.set (new.Qtrio.set, nb.trios = nb.new.Qtrios, Qlabels = Qlabels,
-                                                alpha = alpha, FDRcontrol = FDRcontrol,
-                                                fdr = fdr, lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
-                                                data = data, confounders = confounders, n_t = n_t, n_v = n_v,
-                                                use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
-                                                nperms = nperms, verbose = verbose,
-                                                V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
-                                                cl = cl, chunk.size = chunk.size)
-
-        ## Step 3.6: Update the adjacency matrix
-        if (verbose) {
-          cat(paste0("      # Updating the adjacency matrix: adding edge ",
-                     if (nb.new.Qtrios == 1) "direction for one [Vi,Tj,Qk] trio. \n"
-                     else "directions for ", nb.new.Qtrios, " [Vi,Tj,Qk] trios. \n"))
-        }
-        Qupdate.object <- update.adjacency.matrix (adjacency = adjacency,
-                                                   n_t = n_t, n_v = n_v, n_q = n_q,
-                                                   trio.set = new.Qtrio.set,
-                                                   inferred.models = new.Qtrio.analysis$Inferred.Model,
-                                                   stringent = stringent, add.edges = FALSE,
-                                                   solve.conflicts = solve.conflicts,
-                                                   method = method, dropped.edges = dropped.edges,
-                                                   cl = cl, chunk.size = chunk.size)
-        dropped.edges <- Qupdate.object$dropped.edges
-
-        # Update adjacency
-        adjacency <- Qupdate.object$adjacency
-
-        # Save the additional trios in 'Qtrio.set'
-        Qtrio.set <- rbind(Qtrio.set, new.Qtrio.set)
-
-        # Save the additional trios analysis result in 'Qtrio.analysis'
-        Qtrio.analysis <- rbind(Qtrio.analysis, new.Qtrio.analysis) # (not useful at this point)
-      }
-
-      # Save the number of additional trios generated
-      iter.nb.Qtrios <- c(iter.nb.Qtrios, nb.new.Qtrios)
-    }
-
-    # Save the number of additional trios generated
-    iter.nb.trios <- c(iter.nb.trios, nb.new.trios)
-
-    # Save the additional trios in 'trio.set'
-    trio.set <- rbind(trio.set, new.trio.set)
-
-    # Save the additional trios analysis result in 'trio.analysis'
-    trio.analysis <- rbind(trio.analysis, new.trio.analysis) # (not useful at this point)
-
-    # Update the total number of trios analysed so far
-    nb.trios <- nb.trios + nb.new.trios
-
-    # Indicator of the presence of undirected edges in the updated network
-    Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
-  }
-
-  # Apply VTTthresh majority vote on T-T block before Step 4 so that Step 4
-  # propagates from the majority-vote skeleton rather than the raw iterative skeleton.
-  if (VTTthresh > 0 && !is.null(trio.set) && !is.null(trio.analysis)) {
-    Tidx <- (n_v + 1L):(n_v + n_t)
-    adjacency <- .majority_adj(adjacency = adjacency,
-                               ts        = trio.set,
-                               ana       = trio.analysis,
-                               Tidx      = Tidx,
-                               thresh    = VTTthresh)
-    Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
-  }
-
-  ### Step 4: List trios involving no genetic variant and direct related edges
-  # ----------------------------------------------------------------------------
-
-  if (all(c(Not.fully.directed, analyse.triplets, n_t + n_q >= 3))) { # n_t >= 3 means at least one triplet can be formed
-    ## Step 4.1: Form [Ti,Tj,Tk]  trios
-    if (verbose) {
-      cat("\n      # Generating an initial list of triplets involving only T-nodes. \n")
-    }
-    triplet.set <- enumerate.triplets (adjacency,
-                                       n_t = n_t,
-                                       n_v = n_v,
-                                       n_q = n_q,
-                                       TTT = TRUE,
-                                       cl = cl,
-                                       chunk.size = chunk.size)
-
-    # Number of initial triplets
-    nb.triplets <- length(triplet.set$types)
-    if (!nb.triplets) {
-      if (verbose) {
-        cat("          * no updateable [Ti,Tj,Tk] trio found. \n")
-      }
-      triplet.set <- triplet.analysis <- NULL
-    }
-    else {
-      triplet.set <- cbind(triplet.set$triplets, type = triplet.set$types)
-
-      if (verbose) {
-        cat(paste0("          * ",
-                   if (nb.triplets == 1) "one updateable [Ti,Tj,Tk] trio"
-                   else paste0(nb.triplets, " updateable  [Ti,Tj,Tk] trios"),
-                   " generated. \n"))
-      }
-
-      # Step 4.2: Determine the directed structure for each triplet
-      if (verbose)
-        cat("      # Inferring the causal network for each [Ti,Tj,Tk] trio. \n")
-      triplet.analysis <- analyse.triplet.set (triplet.set, nb.triplets = nb.triplets,
-                                               alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
-                                               lambda = lambda, lambda.step = lambda.step,
-                                               pi0.meth = pi0.meth,
-                                               data = data, confounders = confounders,
-                                               n_t = n_t, n_v = n_v, verbose = verbose,
-                                               cl = cl, chunk.size = chunk.size)
-
-      # Step 4.3: Update the adjacency matrix
-      if (verbose) {
-        cat(if (nb.triplets == 1) paste0("      # Updating the adjacency matrix: adding edge ",
-                                         "direction for one [Ti,Tj,Tk] trio. \n")
-            else paste0("      # Updating the adjacency matrix: adding edge directions for ",
-                        nb.triplets, " [Ti,Tj,Tk] trios. \n"))
-      }
-      update.object <- update.adjacency.matrix (adjacency = adjacency,
-                                                n_v = n_v,
-                                                trio.set = triplet.set,
-                                                inferred.models = triplet.analysis$Inferred.Model,
-                                                stringent = stringent,
-                                                add.edges = FALSE,
-                                                solve.conflicts = solve.conflicts,
-                                                method = method,
-                                                added.edges = added.edges,
-                                                dropped.edges = dropped.edges,
-                                                cl = cl, chunk.size = chunk.size)
-      dropped.edges <- update.object$dropped.edges
-
-      # Update adjacency
-      adjacency <- update.object$adjacency
-    }
-
-    # Step 4.4: Form trio with T-nodes and Q-nodes
-    if (n_q > 0) {
-      if (verbose) {
-        cat("\n      # Generating an initial list of [Ti,Tj,Qk] trios. \n")
-      }
-      Qtriplet.set <- enumerate.triplets(adjacency = adjacency,
-                                         n_t = n_t, n_v = n_v,
-                                         n_q = n_q,
-                                         TTT = FALSE,
-                                         cl = cl, chunk.size = chunk.size)
-
-      # Number of initial trios
-      nb.Qtriplets <- length(Qtriplet.set$types)
-      if (!nb.Qtriplets) {
-        if (verbose) {
-          cat("          * no updateable [Ti,Tj,Qk] trio found. \n")
-        }
-        Qtriplet.set <- Qtriplet.analysis <- NULL
-      }
-      else {
-        Qtriplet.set <- cbind(Qtriplet.set$triplets, type = Qtriplet.set$types)
-
-        if (verbose) {
-          cat(paste0("          * ",
-                     if (nb.Qtriplets == 1) "one updateable [Ti,Tj,Tk] trio"
-                     else paste0(nb.Qtriplets, " updateable  [Ti,Tj,Tk] trios"),
-                     " generated. \n"))
-        }
-
-        # Step 4.5: Determine the directed structure for each trio
-        if (verbose)
-          cat("      # Inferring the causal network for each [Ti,Tj,Qk] trio. \n")
-        Qtriplet.analysis <- analyse.triplet.set (Qtriplet.set, nb.triplets = nb.Qtriplets,
-                                                  alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
-                                                  lambda = lambda, lambda.step = lambda.step,
-                                                  pi0.meth = pi0.meth,
-                                                  data = data, confounders = confounders,
-                                                  n_t = n_t, n_v = n_v, verbose = verbose,
-                                                  cl = cl, chunk.size = chunk.size)
-
-        # Step 4.3: Update the adjacency matrix
-        if (verbose) {
-          cat(if (nb.Qtriplets == 1) paste0("      # Updating the adjacency matrix: adding edge ",
-                                            "direction for one [Ti,Tj,Qk] trio. \n")
-              else paste0("      # Updating the adjacency matrix: adding edge directions for ",
-                          nb.Qtriplets, " [Ti,Tj,Qk] trios. \n"))
-        }
-        Qupdate.object <- update.adjacency.matrix (adjacency = adjacency,
-                                                   n_v = n_v,
-                                                   trio.set = Qtriplet.set,
-                                                   inferred.models = Qtriplet.analysis$Inferred.Model,
-                                                   stringent = stringent,
-                                                   add.edges = FALSE,
-                                                   solve.conflicts = solve.conflicts,
-                                                   method = method,
-                                                   added.edges = added.edges,
-                                                   dropped.edges = dropped.edges,
-                                                   cl = cl, chunk.size = chunk.size)
-        dropped.edges <- Qupdate.object$dropped.edges
-
-        # Update adjacency
-        adjacency <- Qupdate.object$adjacency
-      }
-    }
-
-    ## Iterate Step 4
-    # Indicator of the presence of undirected edges in the updated network
-    Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
-
-    # Repeat step 4: re-evaluate the type of each triplet with two edges, and one undirected.
-    # Re-interpret the result of triplet analysis, and update adjacency.
-    # Number of [Vi,Tj,Tk] trios generated at each iteration
-    iter.nb.triplets <- nb.triplets
-    new.triplet.set <- triplet.set
-    new.triplet.analysis <- triplet.analysis
-    other.triplets <- if (nb.triplets) new.triplet.analysis$Inferred.Model == "Other" else FALSE
-    new_directions <- TRUE
-    if (n_q > 0) {
-      # Number of [Vi,Tj,Qk] trios generated at each iteration
-      iter.nb.Qtriplets <- if (n_q > 0) nb.Qtriplets
-      new.Qtriplet.set <- Qtriplet.set
-      new.Qtriplet.analysis <- Qtriplet.analysis
-      other.Qtriplets <- if (nb.Qtriplets) new.Qtriplet.analysis$Inferred.Model == "Other" else FALSE
-    }
-    else {
-      other.Qtriplets <- FALSE
-    }
-
-    Not.stop <- Not.fully.directed & (any(other.Qtriplets) | any(other.triplets)) # & FALSE
-
-    while(Not.stop & iter < maxiter) {
-
-      if (any(other.triplets)) {
-        ## Step 4.1: Extract [Ti,Tj,Tk] trios to be updated
-        if (verbose) {
-          cat("\n      # Identifying updateable [Ti,Tj,Tk] trios. \n")
-        }
-
-        # Save old triplet types
-        old.types <- new.triplet.set[other.triplets, 4]
-
-        # Find new triplet types based on the updated adjacency
-        new.triplet.set <- get.new.triplet.type (triplet.set = new.triplet.set[other.triplets,, drop = FALSE],
-                                                 adjacency = adjacency,
-                                                 cl = cl,
-                                                 chunk.size = chunk.size)
-        keep.new.triplets <- (new.triplet.set[,4] <= 2) & (new.triplet.set[,4] != old.types)
-        new.triplet.set <- new.triplet.set[keep.new.triplets,,drop = FALSE]
-
-        # Number of initial triplets
-        nb.new.triplets <- sum(keep.new.triplets)
-
-        # Stop if no new updateble trio found
-        if (nb.new.triplets == 0) {
-          new_directions <- FALSE
-          if (verbose) {
-            cat("          * no additional [Ti,Tj,Tk] trio found.")
-          }
-          other.triplets <- FALSE
-        }
-
-        if (nb.new.triplets > 0) {
-          if (verbose) {
-            cat(paste0("          * ",
-                       if (nb.new.triplets == 1) "one updateable [Ti,Tj,Tk] trio"
-                       else paste0(nb.new.triplets, " updateable  [Ti,Tj,Tk] trios"),
-                       " found \n"))
-          }
-
-          # Step 4.2: Extract previous triplet analysis results for kept triplets
-          new.triplet.analysis <- new.triplet.analysis[other.triplets,, drop = FALSE]
-          new.triplet.analysis <- new.triplet.analysis[keep.new.triplets,, drop = FALSE]
-
-          # Step 4.3: Update the adjacency matrix
-          if (verbose) {
-            cat(if (nb.new.triplets == 1) paste0("      # Updating the adjacency matrix: adding edge ",
-                                                 "direction for one [Ti,Tj,Tk] trio. \n")
-                else paste0("      # Updating the adjacency matrix: adding edge directions for ",
-                            nb.new.triplets, " [Ti,Tj,Tk] trios. \n"))
-          }
-          update.object <- update.adjacency.matrix (adjacency = adjacency,
-                                                    n_v = n_v,
-                                                    trio.set = new.triplet.set,
-                                                    inferred.models = new.triplet.analysis$Inferred.Model,
-                                                    stringent = stringent,
-                                                    add.edges = FALSE,
-                                                    solve.conflicts = solve.conflicts,
-                                                    method = method,
-                                                    added.edges = added.edges,
-                                                    dropped.edges = dropped.edges,
-                                                    cl = cl, chunk.size = chunk.size)
-          dropped.edges <- update.object$dropped.edges
-
-          # Update adjacency
-          adjacency <- update.object$adjacency
-
-          # Indicator of the presence of triplets of type "Other"
-          other.triplets <- new.triplet.analysis$Inferred.Model == "Other"
-
-          # Save the number of additional trios generated
-          iter.nb.triplets <- c(iter.nb.triplets, nb.new.trios)
-
-          # Save the additional trios in 'trio.set'
-          triplet.set <- rbind(triplet.set, new.triplet.set)
-
-          # Save the additional trios analysis result in 'trio.analysis'
-          triplet.analysis <- rbind(triplet.analysis, new.triplet.analysis) # (not useful at this point)
-
-        }
-
-      }
-
-      if (n_q > 0 & any(other.Qtriplets)) {
-        ## Step 3.4: Extract [Ti,Tj,Qk] trios to be updated
-        if (verbose) {
-          cat("\n      # Identifying updateable [Ti,Tj,Qk] trios. \n")
-        }
-
-        # Save old triplet types
-        old.Qtypes <- new.Qtriplet.set[other.Qtriplets, 4]
-
-        # Find new triplet types based on the updated adjacency
-        new.Qtriplet.set <- get.new.triplet.type (triplet.set = new.Qtriplet.set[other.Qtriplets,, drop = FALSE],
-                                                  adjacency = adjacency,
-                                                  cl = cl,
-                                                  chunk.size = chunk.size)
-        keep.new.Qtriplets <- (new.Qtriplet.set[,4] <= 2) & (new.Qtriplet.set[,4] != old.Qtypes)
-        new.Qtriplet.set <- new.Qtriplet.set[keep.new.Qtriplets,,drop = FALSE]
-
-        # Number of initial triplets
-        nb.new.Qtriplets <- sum(keep.new.Qtriplets)
-
-        # Stop if no new updateble trio found
-        if (nb.new.Qtriplets == 0) {
-          new_directions <- FALSE
-          if (verbose) {
-            cat("          * no additional [Ti,Tj,Qk] trio found.")
-          }
-
-          other.Qtriplets <- FALSE
-        }
-
-        if (nb.new.Qtriplets > 0) {
-          if (verbose) {
-            cat(paste0("          * ",
-                       if (nb.new.Qtriplets == 1) "one updateable [Ti,Tj,Qk] trio"
-                       else paste0(nb.new.Qtriplets, " updateable  [Ti,Tj,Qk] trios"),
-                       " found. \n"))
-          }
-
-          # Step 4.2: Extract previous triplet analysis results for kept triplets
-          new.Qtriplet.analysis <- new.Qtriplet.analysis[other.Qtriplets,, drop = FALSE]
-          new.Qtriplet.analysis <- new.Qtriplet.analysis[keep.new.Qtriplets,, drop = FALSE]
-
-          # Step 4.3: Update the adjacency matrix
-          if (verbose) {
-            cat(if (nb.new.Qtriplets == 1) paste0("      # Updating the adjacency matrix: adding edge ",
-                                                  "direction for one [Ti,Tj,Qk] trio. \n")
-                else paste0("      # Updating the adjacency matrix: adding edge directions for ",
-                            nb.new.Qtriplets, " [Ti,Tj,Qk] trios. \n"))
-          }
-          update.object <- update.adjacency.matrix (adjacency = adjacency,
-                                                    n_v = n_v,
-                                                    trio.set = new.Qtriplet.set,
-                                                    inferred.models = new.Qtriplet.analysis$Inferred.Model,
-                                                    stringent = stringent,
-                                                    add.edges = FALSE,
-                                                    solve.conflicts = solve.conflicts,
-                                                    method = method,
-                                                    added.edges = added.edges,
-                                                    dropped.edges = dropped.edges,
-                                                    cl = cl, chunk.size = chunk.size)
-          dropped.edges <- update.object$dropped.edges
-
-          # Update adjacency
-          adjacency <- update.object$adjacency
-
-          # Save the additional trios in 'Qtrio.set'
-          Qtriplet.set <- rbind(Qtriplet.set, new.Qtriplet.set)
-
-          # Save the additional trios analysis result in 'Qtrio.analysis'
-          Qtriplet.analysis <- rbind(Qtriplet.analysis, new.Qtriplet.analysis) # (not useful at this point)
-
-          # Indicator of the presence of triplets of type "Other"
-          other.Qtriplets <- new.Qtriplet.analysis$Inferred.Model == "Other"
-        }
-
-        # Save the number of additional trios generated
-        iter.nb.Qtriplets <- c(iter.nb.Qtriplets, nb.new.Qtriplets)
-      }
-
-      # iteration counter
-      iter <- iter + 1
-
-      # Indicator of the presence of undirected edges in the updated network
-      Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
-
-      Not.stop <- Not.fully.directed & any(c(other.triplets, other.Qtriplets))
-    }
-
-  }
+  # Total number of passes, counted as before the split: 1 + extra Step 3
+  # iterations + extra Step 4 iterations
+  niter <- 1 + (if (!is.null(vtt)) vtt$niter - 1 else 0) +
+    (if (!is.null(ttt)) ttt$niter - 1 else 0)
 
   # Report on the presence of undirected edges in the final network
   if (verbose) {
@@ -956,71 +305,27 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
 
   structure(
     list(adjacency = structure(adjacency, class = 'adjacency.matrix'),
-         VTTtrio.set = trio.set,
-         iter.nb.VTTtrios = iter.nb.trios,
-         VTTtrio.analysis = trio.analysis,
-         VTQtrio.set = Qtrio.set,
-         iter.nb.VTQtrios = iter.nb.Qtrios,
-         VTQtrio.analysis = Qtrio.analysis,
-         TTTtrio.set = triplet.set,
-         iter.nb.TTTtrios = iter.nb.triplets,
-         TTTtrio.analysis = triplet.analysis,
-         TTQtrio.set = Qtriplet.set,
-         iter.nb.TTQtrios = iter.nb.Qtriplets,
-         TTQtrio.analysis = Qtriplet.analysis,
+         VTTtrio.set = vtt$trio.set,
+         iter.nb.VTTtrios = vtt$iter.nb.trios,
+         VTTtrio.analysis = vtt$trio.analysis,
+         VTQtrio.set = vtt$Qtrio.set,
+         iter.nb.VTQtrios = vtt$iter.nb.Qtrios,
+         VTQtrio.analysis = vtt$Qtrio.analysis,
+         TTTtrio.set = ttt$triplet.set,
+         iter.nb.TTTtrios = ttt$iter.nb.triplets,
+         TTTtrio.analysis = ttt$triplet.analysis,
+         TTQtrio.set = ttt$Qtriplet.set,
+         iter.nb.TTQtrios = ttt$iter.nb.Qtriplets,
+         TTQtrio.analysis = ttt$Qtriplet.analysis,
          added.edges = added.edges,
          dropped.edges = dropped.edges,
          input.adjacency = structure(Adj0, class = 'adjacency.matrix'),
-         Qlabels = Qlabels, niter = iter,
+         Qlabels = Qlabels, niter = niter,
+         VTT.adjacency.prevote = vtt$adjacency.prevote,   # NEW (2026-10-22)
+         VTT.adjacency = vtt$adjacency,                   # NEW (2026-10-22): skeleton entering Step 4
          cl = cl, chunk.size = chunk.size,
          call = mrgncl),
     class = "MRGN")
-}
-
-.majority_adj <- function(adjacency, ts, ana, Tidx,        # Tidx = which rows/cols of adjacency are T-nodes
-                          keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
-                          thresh = 0.5, clear.tt = TRUE) {
-  # md is the classified model for every trio, one entry per trio (e.g.
-  # "M1.1"). E.g. idx <- which(key == "103.165") finds all 13 trios that
-  # tested the T3-T65 pair, and md[idx] gives their 13 classifications
-  # (2 "M1.1", 11 "Other.1"). These per-trio labels are what the existence
-  # check (md %in% keep, below) and the direction vote (further below) both
-  # work from.
-  md <- ana$Inferred.Model
-  ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]  # drop trios with no classification (NA) before using md/ts below
-
-  A <- adjacency                          # a copy
-  if (clear.tt) A[Tidx, Tidx] <- 0        # VTT: wipe the whole T-T block first; only pairs the vote approves below get restored. TTT passes clear.tt = FALSE to skip this and leave existing edges alone
-
-  lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])  # canonical (lo,hi) so the same pair gets the same key regardless of column order
-  key <- paste0(lo, ".", hi)              # one key per Tj-Tk pair; pools all trios that tested it, whatever the third node (Vi or Ti) was
-
-  # For each Tj-Tk pair, compute what fraction of its trios have a model in
-  # 'keep' (md %in% keep is TRUE/FALSE per trio; averaging TRUE/FALSE within
-  # a pair gives the fraction that were TRUE). Keep the pair only if that
-  # fraction is > thresh -- not all trios need to agree, just enough of them.
-  ex <- tapply(md %in% keep, key, mean)
-  keep.pairs <- names(ex)[ex > thresh]
-
-  for (k in keep.pairs) {           # for each pair that passed the existence check above
-    idx <- which(key == k)          # all trios that tested this specific pair
-    a <- lo[idx[1]]; b <- hi[idx[1]] # the two node ids for this pair (same for every trio in idx)
-    dir <- md[idx] %in% c("M1.1","M1.2","M2.1","M2.2")  # which of this pair's trios have an opinion on direction (M4/Other.1 don't)
-    if (any(dir)) {
-      di <- idx[dir]; m <- md[di]
-      # translate each directional trio's model into an actual edge direction:
-      # M1.1/M2.2 mean col2 -> col3; M1.2/M2.1 mean col3 -> col2 (see update_adj_mat_trio.R)
-      from <- ifelse(m %in% c("M1.1","M2.2"), ts[di,2], ts[di,3])
-      to   <- ifelse(m %in% c("M1.1","M2.2"), ts[di,3], ts[di,2])
-      ab <- sum(from == a & to == b); ba <- sum(from == b & to == a)  # count votes for a->b vs b->a
-    } else ab <- ba <- 0   # no directional trios at all -> treated as a tie below (undirected)
-    # majority direction wins, and the losing direction is cleared explicitly;
-    # a tie (including ab == ba == 0) leaves the edge undirected
-    if      (ab > ba) { A[a,b] <- 1; A[b,a] <- 0 }
-    else if (ba > ab) { A[b,a] <- 1; A[a,b] <- 0 }
-    else            { A[a,b] <- 1; A[b,a] <- 1 }
-  }
-  A
 }
 
 # A brief print method for MRGN output (class 'MRGN')
