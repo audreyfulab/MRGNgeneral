@@ -36,6 +36,9 @@
 #' the corresponding selection is skipped and an empty list is returned. This can be
 #' useful when a dataset is expanded with only one or two types of nodes, and there
 #' is no need to select again confounding variables from the set(s) that remained unchanged.
+#' \code{skip.T} defaults to \code{TRUE} (since 2026-10-22): no \code{T}-node
+#' confounders are selected, so each \code{T}-node's confounder set consists of
+#' selected \code{V}-nodes and selected \code{C}-nodes only.
 #'
 #' @param T.measure,C.measure characters, indicating the association measures to
 #' be used for different selections. One of \code{"partial"} for conditional
@@ -47,8 +50,13 @@
 #' the FDR control methods to be used for different selections.
 #' One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 #' \code{"bonferroni"} (see \link[stats]{p.adjust}).
-#' If any of \code{T.FDRcontrol}, \code{C.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
+#' If any of \code{T.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
 #' \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
+#' \code{C.FDRcontrol} does not inherit \code{FDRcontrol}: it defaults to \code{"BH"}
+#' (since 2026-10-22). In the \code{C}-node selection stage, FDR-controlling
+#' \link[stats]{p.adjust} methods (\code{"BH"}, \code{"BY"}, \code{"fdr"}) reject at
+#' adjusted p-value \code{<= fdr}; other \link[stats]{p.adjust} methods (e.g.
+#' \code{"bonferroni"}) reject at adjusted p-value \code{<= alpha}.
 #'
 #' @param adjust_by,V.adjust_by,T.adjust_by,C.adjust_by,Q.adjust_by character indicating the
 #' adjustment scheme for tests. One of \code{"none"} (no adjustment is desired),
@@ -60,6 +68,18 @@
 #' @param T.filter logical, should \code{T}-node selection attempt to filter out
 #' potential child \code{T}-nodes from the selected pool for each \code{T}-node?
 #' Defaults to \code{FALSE}.
+#'
+#' @param VTcorselect logical, should \code{V}-node selection use a raw
+#' correlation cutoff (\code{|cor(V, T)| >= VTcor.cutoff}) instead of the
+#' marginal t-test + FDR correction? Defaults to \code{TRUE} (since 2026-10-22),
+#' the same rule \link{get.initial.skeleton} uses for \code{V}-\code{T} edges.
+#' Set to \code{FALSE} to use the marginal t-test + FDR correction
+#' (\code{V.FDRcontrol}, \code{V.adjust_by}) instead. Added 2026-09-09.
+#'
+#' @param VTcor.cutoff numeric, the \code{|cor(V, T)|} cutoff used for
+#' \code{V}-node selection when \code{VTcorselect = TRUE}. Ignored otherwise.
+#' Defaults to \code{0.2}, matching the default \code{threshold_v} of
+#' \link{get.initial.skeleton}. Added 2026-09-09.
 #'
 #' @param fdr,lambda,pi0.method,alpha See \link[MRGN]{get.conf.matrix}
 #' (\code{selection_fdr} is used there for \code{fdr}).
@@ -98,15 +118,19 @@
 #' confounding variables in the network; \code{get.conf.sets} performs
 #' three independent tasks.
 #' \describe{
-#'   \item{V-node selection:}{ the *marginal* association between each gene (\code{T}-node) and
-#'   each variant (\code{V}-node) is tested using a *t*-test. If none of \code{V.adjust_by}
+#'   \item{V-node selection:}{ by default (\code{VTcorselect = TRUE}), a variant
+#'   (\code{V}-node) is selected for a gene (\code{T}-node) iff
+#'   \code{|cor(V, T)| >= VTcor.cutoff}, with no test or multiple-testing correction.
+#'   With \code{VTcorselect = FALSE}, the *marginal* association between each gene and
+#'   each variant is instead tested using a *t*-test. If none of \code{V.adjust_by}
 #'   and \code{adjust_by} is \code{'none'}, then either all the tests involving a
 #'   particular \code{T}-node (when \code{adjust_by = 'individual'}), or all the tests
 #'   involving all \code{T}-nodes (when \code{adjust_by = 'all'}) are adjusted for
 #'   multiple comparison using the method \code{V.FDRcontrol}. All \code{V}-nodes
 #'   significantly associated with a particular \code{T}-node are then retained as
 #'   selected confounders for the \code{T}-node.}
-#'   \item{T-node selection:}{ the process is similar to *V-node selection* except
+#'   \item{T-node selection:}{ skipped by default (\code{skip.T = TRUE}).
+#'   When enabled, the process is similar to the test-based *V-node selection* except
 #'   that here, the associations between each \code{T}-node and all other \code{T}-nodes
 #'   in the network are tested, and the association measure between two \code{T}-nodes can
 #'   be partial (the default) or marginal correlation (specified via \code{T.measure}).
@@ -238,21 +262,73 @@ get.conf.sets <- function (data,
                            n_t,                      # Number of Genes
                            n_c,                      # Number of variables in the pool of candidate confounding variables (to select from)
                            skip.V = FALSE,           # Skip V-node selection?
-                           skip.T = FALSE,
+                           ## ---- CHANGED (2026-10-22, final version): default TRUE,
+                           ## i.e. no T-T confounder selection. Each T-node's
+                           ## confounder set is made of V-nodes and C-nodes only.
+                           skip.T = TRUE,
                            skip.C = FALSE,
+                           ## ---- NEW (2026-10-07): bypass stage (d) (U vs W/Z
+                           ## split via marginal V-correlation) and treat every
+                           ## candidate that passed stage (c) (UWZconfounders,
+                           ## the per-T-gene preselection) directly as that
+                           ## T-gene's U-node confounder set, with no further
+                           ## discrimination. Different from skip.C (which
+                           ## zeroes out BOTH stage (c) and (d), giving NO C-node
+                           ## confounders at all) -- this keeps stage (c)'s
+                           ## per-gene filtering intact and only skips the
+                           ## V-correlation-based W/Z reclassification that
+                           ## normally follows it.
+                           ## Default TRUE per explicit instruction (2026-10-07):
+                           ## treating UWZ candidates as confounders here is not
+                           ## considered a final/risky decision, because
+                           ## V.trioconfounders.filter (R/analyse.trio.R) still
+                           ## re-filters each trio's confounder set downstream,
+                           ## per-trio, against that trio's own Vi -- so a
+                           ## mis-included intermediate/common-child node still
+                           ## gets a further chance to be screened out before it
+                           ## ever reaches a regression. Set to FALSE to restore
+                           ## the original stage (d) U/W/Z split behavior.
+                           skip.UWZsplit = TRUE,
                            T.measure = c("partial", "marginal"), # Selection measure
                            C.measure = T.measure,
                            blocksize = 10,
                            FDRcontrol = c("qvalue", "bonferroni", "none"),
                            V.FDRcontrol = FDRcontrol,
                            T.FDRcontrol = FDRcontrol,
-                           C.FDRcontrol = FDRcontrol,
+                           ## CHANGED (2026-10-22, final version): T-C selection
+                           ## defaults to BH at threshold 'fdr' (0.05), no longer
+                           ## inheriting FDRcontrol. FDR-controlling p.adjust methods
+                           ## ("BH", "BY", "fdr") use 'fdr' as the threshold in this
+                           ## stage; FWER methods (e.g. "bonferroni") still use 'alpha'.
+                           C.FDRcontrol = "BH",
                            Q.FDRcontrol = FDRcontrol,
                            adjust_by = c("individual", "all", "none"),
                            V.adjust_by = adjust_by,
                            T.adjust_by = adjust_by,
                            C.adjust_by = adjust_by,
                            Q.adjust_by = adjust_by,
+                           ## ---- NEW (2026-09-09): raw-correlation cutoff V-node
+                           ## selection, bypassing the marginal t-test + FDR
+                           ## correction entirely.
+                           ## ---- CHANGED (2026-10-22, final version): default TRUE
+                           ## with cutoff 0.2, the same rule and default threshold
+                           ## (threshold_v = 0.2) get.initial.skeleton() uses for
+                           ## V-T edges. The t-test + FDR approach remains available
+                           ## via VTcorselect = FALSE (V.FDRcontrol / V.adjust_by).
+                           VTcorselect = TRUE,       # use |cor(V,T)| >= VTcor.cutoff instead of FDR-based V-node selection?
+                           VTcor.cutoff = 0.2,       # cutoff used only when VTcorselect = TRUE
+                           ## ---- NEW (2026-09-23): toggle for the Tcandidates filter
+                           ## (added 2026-09-08, previously always-on/unconditional).
+                           ## Default FALSE: Tcandidates[[j]] is set to "no restriction"
+                           ## (setdiff(1:n_t, j)) for every T_j, making the later
+                           ## intersection with Tconfounders a no-op, so behavior is
+                           ## identical to before Tcandidates existed. Retained (not
+                           ## removed) because both Tcandidates and VTcorselect showed
+                           ## unstable/harmful effects on true-confounder recall in
+                           ## ground-truth checks (A2 run21, KC-simulation, 2026-09-16 to
+                           ## 2026-09-23) -- kept available for reference/comparison, not
+                           ## recommended as the default going forward.
+                           Tcandidates.active = FALSE,
                            T.filter = FALSE,
                            fdr = 0.05, # Only used if FDRcontrol = 'qvalue'
                            lambda = 0.05,
@@ -281,6 +357,52 @@ get.conf.sets <- function (data,
       ## Return empty list if no V-node
       Vraw <- NULL
       Vconfounders <- vector(mode = "list", length = n_t)
+    }
+    else if (VTcorselect) {
+      ### ---- BEGIN NEW STEP (2026-09-09): raw-correlation cutoff V-node
+      ## selection. Bypasses the marginal t-test + FDR correction entirely: a
+      ## V is kept as a confounder for T_j iff |cor(V, T_j)| >= VTcor.cutoff.
+      ## No p-values, no multiple-testing correction are computed in this
+      ## branch (pvalues/qvalues/adj.p are filled with NA below, only to keep
+      ## Vraw's structure consistent with the FDR-based branch, so downstream
+      ## code -- including the Tcandidates step added 2026-09-08, which reads
+      ## Vraw$sig and Vconfounders -- does not need to know which branch ran).
+      ##
+      ## Uses base R cor() directly rather than propagate::bigcor() (used
+      ## elsewhere in this file for large matrices). This is fine at the data
+      ## scales tested so far (n_v/n_t in the hundreds: KC 327x77, A2 100x100
+      ## both run in well under a second). If n_v/n_t grow into the thousands,
+      ## or the data has substantial missingness, this direct cor() call will
+      ## become a real bottleneck: benchmarked on 2026-09-09, a plain
+      ## cor(use = "pairwise.complete.obs") call on a 5000 x 5000 output with
+      ## ~2% missing data took ~11.5s and used ~200MB just for the output
+      ## matrix; at 20000 x 20000 (no missingness) it took ~88s and ~3.2GB.
+      ## If this becomes the bottleneck, switch to a blocked computation via
+      ## propagate::bigcor() (already used elsewhere in this file, reusing
+      ## the existing 'blocksize' argument) instead of the plain cor() call
+      ## below.
+      if (verbose) {
+        cat("\n        * selecting 'V-nodes' using raw correlation cutoff (|r| >= ",
+            VTcor.cutoff, ") ... \n", sep = "")
+      }
+
+      cor.mat <- cor(data[, V.pool, drop = FALSE], data[, T.pool, drop = FALSE],
+                     use = "pairwise.complete.obs")
+      sig.mat <- abs(cor.mat) >= VTcor.cutoff
+      sig.mat[is.na(sig.mat)] <- FALSE  # guard: zero-variance V/T -> NA correlation
+
+      dimnames(cor.mat) <- dimnames(sig.mat) <-
+        list(colnames(data[, V.pool, drop = FALSE]), colnames(data[, T.pool, drop = FALSE]))
+
+      Vraw <- list(sig.asso.covs = lapply(1:n_t, function(j) which(sig.mat[, j])),
+                   pvalues = matrix(NA, nrow = n_v, ncol = n_t),
+                   qvalues = matrix(NA, nrow = n_v, ncol = n_t),
+                   cors    = cor.mat,
+                   sig     = sig.mat,
+                   adj.p   = matrix(NA, nrow = n_v, ncol = n_t))
+
+      Vconfounders <- Vraw$sig.asso.covs
+      ### ---- END NEW STEP (2026-09-09) ----
     }
     else {
       if (verbose) {
@@ -357,6 +479,47 @@ get.conf.sets <- function (data,
       Vconfounders <- Vraw$sig.asso.covs
     }
   })
+
+  ### ---- BEGIN NEW STEP (2026-09): restrict T-T confounder candidates ----
+  ## Idea: for each T_j, a candidate T_k should not be considered as a
+  ## potential T-confounder if T_k shares T_j's own genetic signal (i.e. T_k
+  ## is marginally correlated with one of T_j's own V-node confounders,
+  ## Vconfounders[[j]]). This mirrors the existing U-node vs W/Z-node logic
+  ## (a true confounder should be uncorrelated with the V-nodes), applied here
+  ## to restrict which T-nodes are even eligible to be tested as a T-T
+  ## confounder for T_j, before the (unmodified) T-node selection FDR step
+  ## runs. Reuses Vraw$sig (n_v x n_t logical matrix, already computed by
+  ## V-node selection above) instead of recomputing any correlations.
+  ##
+  ## Per T_j: for each V in Vconfounders[[j]], take the set of T_k NOT
+  ## significantly correlated with that V (which(!Vraw$sig[v, ])), then union
+  ## (unique) these sets across all V's in Vconfounders[[j]]. If T_j has no
+  ## V-node confounders, there is no basis to exclude anything, so all other
+  ## T-nodes remain eligible (no restriction for that T_j).
+  ##
+  ## NOTE: this list is only used later to filter Tconfounders (see the
+  ## matching "END NEW STEP" marker near the Tconfounders self-index removal
+  ## block below). It does NOT change the T-T FDR/q-value pooling itself
+  ## (Traw is still computed over the full T-T pair set, exactly as before --
+  ## adjust_by = "all" keeps pooling ALL T-T pairs, unfiltered).
+  ## ---- NEW (2026-09-23): Tcandidates.active toggle. When FALSE (default),
+  ## skip the real computation entirely and set every T_j's candidate pool to
+  ## "everything allowed" -- mathematically a no-op once intersected with
+  ## Tconfounders further down, so get.conf.sets() behaves exactly as it did
+  ## before Tcandidates existed.
+  if (Tcandidates.active) {
+    Tcandidates <- lapply(1:n_t, function(j) {
+      Vj <- Vconfounders[[j]]
+      if (is.null(Vj) || length(Vj) == 0) {
+        return(setdiff(1:n_t, j))
+      }
+      allowed <- unique(unlist(lapply(Vj, function(v) which(!Vraw$sig[v, ]))))
+      setdiff(allowed, j)
+    })
+  } else {
+    Tcandidates <- lapply(1:n_t, function(j) setdiff(1:n_t, j))
+  }
+  ### ---- END NEW STEP (2026-09-08 / toggle added 2026-09-23) ----
 
   ### Select T-nodes
   TTime <- system.time({
@@ -512,14 +675,25 @@ get.conf.sets <- function (data,
 
     Tconfounders <- Traw$sig.asso.covs
 
+    ### ---- BEGIN NEW STEP (2026-09): apply Tcandidates filter ----
+    ## Tcandidates (built above, right after V-node selection) restricts, for
+    ## each T_j, which T_k are even eligible to be a T-T confounder (T_k must
+    ## be marginally uncorrelated with at least one of T_j's own V-node
+    ## confounders). Applied here as a plain intersection on top of the
+    ## existing self-index-removal logic. This does NOT touch the T-T
+    ## FDR/q-value pooling above (Traw / p.mat / sig.mat), which still runs
+    ## over the full, unfiltered T-T pair set exactly as before -- only the
+    ## final list of confounders actually kept for downstream use is
+    ## restricted here.
     Tconfounders <- lapply(1:n_t,
                            FUN = function(j) {
                              x <- Tconfounders[[j]]
                              if (is.null(x))
                                return(NULL)
 
-                             # index of T-j selected for T_j
-                             keep <- x != j
+                             # index of T-j selected for T_j, restricted to
+                             # the Tcandidates[[j]] pool (2026-09-08)
+                             keep <- (x != j) & (x %in% Tcandidates[[j]])
 
                              if (all(!keep))
                                return(NULL)
@@ -527,6 +701,7 @@ get.conf.sets <- function (data,
                              return(x[keep] + n_v)
 
                            })
+    ### ---- END NEW STEP (2026-09) ----
     }
   })
 
@@ -622,7 +797,7 @@ get.conf.sets <- function (data,
           if (C.apply.qval) {
             cat(paste0("            applying qvalue correction to control the FDR at ", fdr, "\n"))
           } else if (C.adjust_by != "none") {
-            cat(paste0("            applying ", C.FDRcontrol, " correction with threshold ", alpha, "\n"))
+            cat(paste0("            applying ", C.FDRcontrol, " correction with threshold ", C.alpha, "\n"))
           }
         }
 
@@ -708,13 +883,13 @@ get.conf.sets <- function (data,
                    p.adj.mat <- apply(p.mat, MARGIN = 2,
                                       FUN = stats::p.adjust,
                                       method = C.FDRcontrol)
-                   sig.mat <- p.adj.mat <= alpha
+                   sig.mat <- p.adj.mat <= C.alpha
                    q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
                  },
                  all = {
                    p.adj.mat <- matrix(stats::p.adjust(as.vector(p.mat), method = C.FDRcontrol),
                                        nrow = n_c, ncol = n_t, byrow = FALSE)
-                   sig.mat <- p.adj.mat <= alpha
+                   sig.mat <- p.adj.mat <= C.alpha
                    q.mat <- matrix(NA, nrow = n_c, ncol = n_t)
                  },
                  none = {
@@ -754,7 +929,7 @@ get.conf.sets <- function (data,
                           apply.qval = C.apply.qval,
                           lambda = lambda,
                           pi0.method = pi0.method,
-                          alpha = alpha,
+                          alpha = C.alpha,
                           verbose = max(0, verbose - 1),
                           cl = cl, chunk.size = chunk.size)
         })$value
@@ -779,7 +954,7 @@ get.conf.sets <- function (data,
                               apply.qval = C.apply.qval,
                               lambda = lambda,
                               pi0.method = "bootstrap",
-                              alpha = alpha,
+                              alpha = C.alpha,
                               verbose = max(0, verbose - 1),
                               cl = cl, chunk.size = chunk.size)
             })$value
@@ -825,6 +1000,18 @@ get.conf.sets <- function (data,
 
       # Number of W,Z-nodes, number of U-nodes
       n_wz <- n_u <- 0
+    }
+    else if (skip.UWZsplit) {
+      ## ---- NEW (2026-10-07): bypass the V-correlation-based U vs W/Z split
+      ## entirely -- every candidate that passed stage (c) for a given T-gene
+      ## (UWZconfounders[[j]]) is treated directly as that T-gene's U-node
+      ## confounder set, no further discrimination. See the skip.UWZsplit
+      ## parameter documentation above for the rationale (default TRUE).
+      WZraw <- WZindices <- NULL
+      WZconfounders <- vector(mode = "list", length = n_v)
+      Uconfounders <- UWZconfounders
+      n_wz <- 0
+      n_u <- n_uwz
     }
     else {
       ## Determine which V-nodes to use for W,Z identification (stage d)
@@ -1044,6 +1231,9 @@ check.get.conf.sets.args <- function () {
     C.FDRcontrol <- C.FDRcontrol[1]
     stopifnot(C.FDRcontrol %in% c("none", "qvalue", p.adjust.methods))
     C.apply.qval <- (C.FDRcontrol == "qvalue") & (C.adjust_by != "none")
+    ## NEW (2026-10-22): rejection threshold for p.adjust methods in the C stage --
+    ## 'fdr' for FDR-controlling methods (BH/BY/fdr), 'alpha' otherwise.
+    C.alpha <- if (C.FDRcontrol %in% c("BH", "BY", "fdr")) fdr else alpha
 
     T.adjust_by <- T.adjust_by[1]
     stopifnot(T.adjust_by %in% c("all", "individual", "none"))
@@ -1056,6 +1246,14 @@ check.get.conf.sets.args <- function () {
     V.FDRcontrol <- V.FDRcontrol[1]
     stopifnot(V.FDRcontrol %in% c("none", "qvalue", p.adjust.methods))
     V.apply.qval <- (V.FDRcontrol == "qvalue") & (V.adjust_by != "none")
+
+    ### ---- NEW (2026-09-09): validate VTcorselect / VTcor.cutoff ----
+    VTcorselect <- as.logical(VTcorselect)[1]
+    stopifnot(is.logical(VTcorselect), !is.na(VTcorselect))
+    VTcor.cutoff <- as.numeric(VTcor.cutoff)[1]
+    stopifnot(is.numeric(VTcor.cutoff), !is.na(VTcor.cutoff),
+              VTcor.cutoff >= 0, VTcor.cutoff <= 1)
+    ### ---- END NEW (2026-09-09) ----
 
     Q.adjust_by <- Q.adjust_by[1]
     stopifnot(Q.adjust_by %in% c("all", "individual", "none"))

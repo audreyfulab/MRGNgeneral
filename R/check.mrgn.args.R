@@ -134,10 +134,12 @@ check.mrgn.args <- function() {
     stopifnot (is.numeric(alpha))
     alpha <- alpha[1]
     stopifnot (alpha > 0, alpha < .5)
-    if (identical(FDRcontrol, "qvalue")) { # qvalue method
+    if (!identical(FDRcontrol, "none")) { # fdr is the rejection threshold for qvalue and p.adjust methods (e.g. BH)
       stopifnot (is.numeric(fdr))
       fdr <- fdr[1]
       stopifnot (fdr > 0, fdr < .5)
+    }
+    if (identical(FDRcontrol, "qvalue")) { # qvalue method
       stopifnot(all(pi0.meth %in% c("bootstrap", "smoother")))
       stopifnot (lambda.step > 0, lambda.step < .1)
     }

@@ -40,11 +40,15 @@
 #' @param nperms Integer, number of permutations to use when \code{use.perm = TRUE}.
 #'   Default is 10000
 #'
-#' @param FDRcontrol Character, FDR control method. One of "bonferroni", "qvalue", or "none".
-#'   Default is "bonferroni"
+#' @param FDRcontrol Character, multiple-testing correction applied to the trio
+#'   (and triplet) analyses at each iteration. One of "BH" (Benjamini-Hochberg),
+#'   "bonferroni" (or any other method accepted by \link[stats]{p.adjust}),
+#'   "qvalue", or "none". Default is "BH" (since 2026-10-22; previously "bonferroni")
 #'
-#' @param fdr Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration.
-#'   Only used if \code{FDRcontrol = "qvalue"}. Default is 0.05
+#' @param fdr Numeric in (0, 0.5), false discovery rate for all trio analyses at one iteration:
+#'   the rejection threshold for q-values (\code{FDRcontrol = "qvalue"}) or for
+#'   adjusted p-values (\code{FDRcontrol = "BH"}, \code{"bonferroni"}, etc.).
+#'   Not used if \code{FDRcontrol = "none"}. Default is 0.05
 #'
 #' @param lambda Numeric, tuning parameter for pi0 estimation in q-value calculation.
 #'   If NULL (default), initialized using \code{lambda.step}
@@ -93,6 +97,19 @@
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
 #' \link[parallel]{parLapply} (when supplied).
 #'
+#' @param V.trioconfounders.filter logical, should each trio's confounder set be
+#' dynamically filtered, right before that trio's analysis, to exclude any
+#' candidate confounder correlated with that trio's OWN V-node (instrument)?
+#' Unlike the (separate, \link{get.conf.sets}-level) Tcandidates filter, which
+#' statically restricts confounder selection per T-node using that T-node's
+#' overall set of selected V-confounders, this filter is recomputed fresh for
+#' every trio, using the specific V anchoring that one trio. Defaults to
+#' \code{TRUE} (since 2026-10-22; previously \code{FALSE}). Set to \code{FALSE}
+#' to leave confounder sets completely unchanged. Added 2026-09-17.
+#'
+#' @param V.filter.cutoff numeric, the \code{|cor(Vi, confounder)|} cutoff
+#' used when \code{V.trioconfounders.filter = TRUE}. Ignored otherwise. Defaults
+#' to \code{0.2} (since 2026-10-22; previously \code{0.35}). Added 2026-09-17.
 #'
 #' @seealso \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
@@ -165,7 +182,9 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   use.perm = FALSE, # See infer.trio
                   gamma = 0.05, #
                   nperms = 10000, #
-                  FDRcontrol = c("bonferroni", "qvalue", "none"),
+                  ## CHANGED (2026-10-22): default is now "BH" (Benjamini-Hochberg via
+                  ## stats::p.adjust, rejection at adjusted p <= fdr), previously "bonferroni".
+                  FDRcontrol = c("BH", "bonferroni", "qvalue", "none"),
                   fdr = 0.05, # in (0, .5) False discovery rate for all trio analyses at one iteration, in the open (0, .5)
                   lambda = NULL, # The value of the tuning parameter for n_v-value estimation
                   lambda.step = 0.05, # in (0, .1); Used to initialize "lambda" when lambda = NULL
@@ -180,6 +199,19 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
                   VTTthresh = 0.3,
+                  ## ---- NEW (2026-09-17): per-trio, dynamic confounder filter.
+                  ## For each [Vi,Tj,Tk] (or [Vi,Tj,Qk]) trio, right before it goes
+                  ## into trio analysis, excludes from that trio's confounder set
+                  ## any candidate confounder correlated with THIS trio's own Vi
+                  ## (|cor| >= V.filter.cutoff). Unlike the Tcandidates filter in
+                  ## get.conf.sets() (static, per-T-node, based on that T-node's
+                  ## OVERALL selected V-confounders), this is computed fresh per
+                  ## trio, using the specific Vi anchoring that one trio -- V/T/UWZ
+                  ## confounder selection in get.conf.sets() itself is completely
+                  ## unaffected. CHANGED (2026-10-22): default TRUE (was FALSE).
+                  ## See analyse.trio.i() in R/analyse.trio.R for the actual filter.
+                  V.trioconfounders.filter = TRUE,
+                  V.filter.cutoff = 0.2,   # CHANGED (2026-10-22): was 0.35
                   seed = NULL) { # seed for reproducible results in parallel computing
   # ============================================================================
   # Save the call to MRGN
@@ -273,6 +305,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                                        data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                        use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                        nperms = nperms, verbose = verbose,
+                                       V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                        cl = cl, chunk.size = chunk.size)
 
     ## Step 3.3: Update the adjacency matrix
@@ -351,6 +384,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                                           data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                           use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                           nperms = nperms, verbose = verbose,
+                                          V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                           cl = cl, chunk.size = chunk.size)
 
       ## Step 3.6: Update the adjacency matrix
@@ -437,6 +471,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                                            data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                            use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                            nperms = nperms, verbose = verbose,
+                                           V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                            cl = cl, chunk.size = chunk.size)
 
     ## Step 3.3: Update the adjacency matrix
@@ -519,6 +554,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                                                 data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                                 use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                                 nperms = nperms, verbose = verbose,
+                                                V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                                 cl = cl, chunk.size = chunk.size)
 
         ## Step 3.6: Update the adjacency matrix

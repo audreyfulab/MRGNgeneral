@@ -56,7 +56,12 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                              pi0.meth = "bootstrap",
                              data, confounders, n_v,n_t,
                              use.perm, gamma, is.CNA,
-                             nperms, verbose, cl = NULL, chunk.size = NULL) {
+                             nperms, verbose, cl = NULL, chunk.size = NULL,
+                             ## ---- NEW (2026-09-17): threaded through to
+                             ## analyse.trio.i() -- see there for details.
+                             ## Default TRUE since 2026-10-22 (matches MRGN()).
+                             V.trioconfounders.filter = TRUE,
+                             V.filter.cutoff = 0.2) {   # was 0.35 before 2026-10-22
   switch(FDRcontrol,
          none = { # No correction
            all.stats <- matteApply(trio.set,
@@ -66,6 +71,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    alpha = alpha, nperms = nperms, half1 = FALSE, verbose = verbose > 1,
+                                   V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                    cl = cl, chunk.size = chunk.size)
            all.stats <- do.call('rbind', all.stats)
          },
@@ -78,9 +84,15 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    nperms = nperms, half1 = TRUE, verbose = verbose > 1,
+                                   V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                    cl = cl, chunk.size = chunk.size)
            all.stats <- do.call('rbind', all.stats)
-           Inferred.Model0 <- all.stats[,8]
+           ## FIX (2026-10-07): select by name, not position 8 -- MRGN >= 1.3.9's
+           ## infer.trio() inserted coef11/coef12/coef21/coef22 columns before
+           ## Inferred.Model, which silently shifted what a fixed numeric index
+           ## pointed to. See R/analyse.trio.i()'s half1 extraction below for the
+           ## matching fix on the upstream side.
+           Inferred.Model0 <- all.stats[,"Inferred.Model"]
 
            # FDR control: apply qvalue correction
            if (is.null(lambda)) {
@@ -143,7 +155,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
            all.stats$Inferred.Model0 <- Inferred.Model0
 
          },
-         { # Bonferroni and all other Multiple Comparisons adjustment methods
+         { # BH (MRGN() default since 2026-10-22), Bonferroni and all other stats::p.adjust methods
            # Half trio analysis
            all.stats <- matteApply(trio.set,
                                    MARGIN = 1,
@@ -152,11 +164,14 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    nperms = nperms, half1 = TRUE, verbose = verbose > 1,
+                                   V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
                                    cl = cl, chunk.size = chunk.size)
            all.stats <- do.call('rbind', all.stats)
-           Inferred.Model0 <- all.stats[,8]
+           ## FIX (2026-10-07): select by name, not position 8 -- see matching
+           ## fix in the qvalue branch above for the full explanation.
+           Inferred.Model0 <- all.stats[,"Inferred.Model"]
 
-           # Bonferroni correction
+           # p.adjust correction (BH, Bonferroni, ...), pooled over all trios' p-values
            p.adj <- stats::p.adjust(as.vector(as.matrix(all.stats[, 1:6])), method=FDRcontrol)
            p.adj <- matrix(p.adj, nrow = nb.trios, byrow = FALSE)
            all.stats <- cbind(p.adj <= fdr, p.adj,
@@ -177,9 +192,17 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
          })
 
   ### Distinguish 'Other.1' and 'Other.2' trio structures
-  Others <- all.stats[, 14] == "Other"
+  ## FIX (2026-10-07): select/assign by name, not position 14. Under the
+  ## "none" branch, all.stats keeps the FULL width returned by MRGN::infer.trio()
+  ## (no half1 truncation), so with MRGN >= 1.3.9 (which inserts coef11/coef12/
+  ## coef21/coef22 before Inferred.Model), column 14 there is "coef11" (numeric),
+  ## not "Inferred.Model" (character) -- the old position-based check/assignment
+  ## silently compared/wrote the wrong column and this reclassification never
+  ## fired. Columns 1:13 (b11..Minor.freq) are unaffected by the new columns and
+  ## still safe to pass to class.other() positionally.
+  Others <- all.stats[, "Inferred.Model"] == "Other"
   if (any(Others)) {
-    all.stats[Others, 14] <- c(matteApply(all.stats[Others, 1:13, drop = FALSE],
+    all.stats[Others, "Inferred.Model"] <- c(matteApply(all.stats[Others, 1:13, drop = FALSE],
                                           MARGIN = 1, FUN = class.other,
                                           cl = cl, chunk.size = chunk.size))
   }
@@ -194,7 +217,12 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
                             confounders, # indicate column number in the data fame
                             Qlabels = NULL, # NULL means that 'col.indices' also indicate positions in data (not just in the Adj matrix, i.e. columns of data are ordered so that they match those of Adj)
                             use.perm = TRUE, gamma = 0.05, is.CNA = FALSE,
-                            alpha = 0.01, nperms = 10000, half1 = FALSE, verbose = FALSE) {
+                            alpha = 0.01, nperms = 10000, half1 = FALSE, verbose = FALSE,
+                            ## ---- NEW (2026-09-17): per-trio, dynamic confounder
+                            ## filter by correlation with THIS trio's own Vi. Default
+                            ## TRUE since 2026-10-22 (was FALSE; matches MRGN()).
+                            V.trioconfounders.filter = TRUE,
+                            V.filter.cutoff = 0.2) {   # was 0.35 before 2026-10-22
 
   # Replace Adj column index by data column index if any of the two T-nodes is a Q-node
   n_vt <- n_t + n_v
@@ -218,6 +246,28 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
   #if (any(VTduplicates))
   #  conf.set.trio <- conf.set.trio[!VTduplicates]
 
+  ### ---- BEGIN NEW STEP (2026-09-17): dynamic, per-trio confounder filter ----
+  ## Unlike the Tcandidates filter (get.conf.sets.R, 2026-09-08, which restricts
+  ## the T-T confounder POOL once, statically, per T-node, based on that T-node's
+  ## own OVERALL set of selected V-confounders), this filters the confounder set
+  ## ALREADY ASSEMBLED for THIS SPECIFIC trio (conf.set.trio, the union of Tj's
+  ## and Tk's selected confounders as usual -- confounder selection in
+  ## get.conf.sets() itself is completely untouched), based on correlation with
+  ## col.indices[1] = Vi, the ACTUAL V-node anchoring this one trio -- not Tj's
+  ## or Tk's V-confounders in general, which may differ from Vi. A candidate
+  ## confounder correlated with this trio's own instrument (Vi) is excluded from
+  ## THIS trio's regression only; other trios sharing the same Tj/Tk but a
+  ## different Vi are filtered independently, using their own Vi.
+  if (V.trioconfounders.filter && length(conf.set.trio) > 0) {
+    Vi_col <- col.indices[1]
+    cors_to_Vi <- sapply(conf.set.trio, function(cidx) {
+      cor(data[, Vi_col], data[, cidx], use = "pairwise.complete.obs")
+    })
+    cors_to_Vi[is.na(cors_to_Vi)] <- 0  # guard: zero-variance confounder -> NA correlation
+    conf.set.trio <- conf.set.trio[abs(cors_to_Vi) < V.filter.cutoff]
+  }
+  ### ---- END NEW STEP (2026-09-17) ----
+
   # All indices of variables in the trio (including counfounders)
   all_indices <- unique(c(col.indices, conf.set.trio))
 
@@ -234,9 +284,16 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
     out
   })
 
-  # If half1 = TRUE, only return the last 8 columns required to correct p-values  (and re-infer trio model)
+  # If half1 = TRUE, only return the 8 columns required to correct p-values (and re-infer trio model)
+  ## FIX (2026-10-07): select by name, not position 7:14. MRGN >= 1.3.9's
+  ## infer.trio() inserts coef11/coef12/coef21/coef22 between Minor.freq and
+  ## Inferred.Model, so trio.res now has 18 columns instead of 14 -- a fixed
+  ## 7:14 slice silently grabbed pb11..Minor.freq+coef11 instead of
+  ## pb11..Minor.freq+Inferred.Model, dropping Inferred.Model entirely from
+  ## the qvalue/bonferroni branches' pooled correction step.
   if (half1)
-    trio.res[,7:14]
+    trio.res[, c("pb11", "pb12", "pb21", "pb22", "pV1:T1", "pV1:T2",
+                 "Minor.freq", "Inferred.Model")]
   else
     trio.res
 }
