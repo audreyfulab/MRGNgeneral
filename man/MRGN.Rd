@@ -35,6 +35,7 @@ MRGN(
   chunk.size = NULL,
   verbose = 0L,
   VTTthresh = 0.3,
+  TTTthresh = 0,
   V.trioconfounders.filter = TRUE,
   V.filter.cutoff = 0.2,
   seed = NULL
@@ -128,6 +129,11 @@ of trios supporting it (via models \code{M1.1}, \code{M1.2}, \code{M2.1},
 directional models. Set to \code{0} to run the original MRGN algorithm
 unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
 revert to the default \code{0.3}.}
+
+\item{TTTthresh}{Numeric in \eqn{[0, 1]}. Default \code{0}: no Step 4 majority
+vote. When in \eqn{(0, 1]}, the direction of each \code{Tj-Tk} edge tested by
+"candidate trio (2)" triplets is re-decided by majority vote after Step 4; see
+\link{MRGN.TTT}. Never removes an edge. Re-added on 2026-10-29.}
 
 \item{V.trioconfounders.filter}{logical, should each trio's confounder set be
 dynamically filtered, right before that trio's analysis, to exclude any

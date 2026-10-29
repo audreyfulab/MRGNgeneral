@@ -31,6 +31,15 @@
   VTTthresh
 }
 
+# Internal: validate TTTthresh (shared by MRGN() and MRGN.TTT(); default 0 = off)
+.mrgn.check.TTTthresh <- function (TTTthresh) {
+  if (!is.numeric(TTTthresh) || length(TTTthresh) != 1 || TTTthresh < 0 || TTTthresh > 1) {
+    warning("TTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
+    TTTthresh <- 0
+  }
+  TTTthresh
+}
+
 # An internal function to generate the code to check MRGN arguments
 # Also saves inputs and format some arguments for the MRGN algorithm
 check.mrgn.args <- function() {

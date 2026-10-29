@@ -493,7 +493,7 @@ MRGN.VTT <- function (data,
   ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]  # drop trios with no classification (NA) before using md/ts below
 
   A <- adjacency                          # a copy
-  if (clear.tt) A[Tidx, Tidx] <- 0        # VTT: wipe the whole T-T block first; only pairs the vote approves below get restored. clear.tt = FALSE would skip this and leave existing edges alone (not used by MRGN.VTT()/MRGN.TTT(); Step 4 does not call .majority_adj)
+  if (clear.tt) A[Tidx, Tidx] <- 0        # VTT: wipe the whole T-T block first; only pairs the vote approves below get restored. clear.tt = FALSE skips this and leaves existing edges alone (used by the optional TTTthresh vote in MRGN.TTT(), which only re-directs edges)
 
   lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])  # canonical (lo,hi) so the same pair gets the same key regardless of column order
   key <- paste0(lo, ".", hi)              # one key per Tj-Tk pair; pools all trios that tested it, whatever the third node (Vi or Ti) was

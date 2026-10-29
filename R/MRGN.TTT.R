@@ -20,8 +20,22 @@
 #' \code{NULL} (none), or taken from \code{adjacency} when it is an
 #' \code{'MRGN.VTT'} or \code{'MRGN'} object.
 #'
+#' @param TTTthresh Numeric in \eqn{[0, 1]}. Default \code{0}: no majority vote,
+#'   Step 4 runs as its sequential pass alone. When in \eqn{(0, 1]}, after Step 4
+#'   the direction of every \code{Tj-Tk} edge tested by "candidate trio (2)"
+#'   triplets (\code{Ti -> Tj - Tk}) is re-decided by majority vote over all such
+#'   triplets: the edge is directed only if the fraction of triplets voting
+#'   \code{M1.1} or \code{M2.1} (as opposed to \code{"Other"}) strictly exceeds
+#'   \code{TTTthresh}, by the majority among those votes (\code{M1.1}:
+#'   \code{Tj -> Tk}; \code{M2.1}: \code{Tk -> Tj}; a tie leaves it undirected).
+#'   Unlike \code{VTTthresh}, this never removes an edge. Values outside
+#'   \eqn{[0, 1]} trigger a warning and revert to \code{0}. Re-added on
+#'   2026-10-29 (first added 2026-07-26, removed 2026-08-19).
+#'
 #' @return an object of class \code{'MRGN.TTT'}, a list with elements
-#' \code{adjacency}, \code{triplet.set}, \code{iter.nb.triplets},
+#' \code{adjacency}, \code{adjacency.prevote} (before the optional
+#' \code{TTTthresh} vote; identical to \code{adjacency} when \code{TTTthresh = 0}),
+#' \code{triplet.set}, \code{iter.nb.triplets},
 #' \code{triplet.analysis}, \code{Qtriplet.set}, \code{iter.nb.Qtriplets},
 #' \code{Qtriplet.analysis}, \code{added.edges}, \code{dropped.edges},
 #' \code{niter} (number of Step 4 passes, counted separately from Step 3),
@@ -49,6 +63,7 @@ MRGN.TTT <- function (data,
                       maxiter = NULL,
                       added.edges = NULL,
                       dropped.edges = NULL,
+                      TTTthresh = 0,
                       parallel = FALSE,
                       cl = parallel::getDefaultCluster(),
                       chunk.size = NULL,
@@ -73,6 +88,7 @@ MRGN.TTT <- function (data,
   chunk.size <- par.setup$chunk.size
 
   eval(check.mrgn.args())
+  TTTthresh <- .mrgn.check.TTTthresh(TTTthresh)
 
   out <- .MRGN.TTT.core(data = data, adjacency = adjacency,
                         n_v = n_v, n_t = n_t, n_q = n_q,
@@ -82,9 +98,11 @@ MRGN.TTT <- function (data,
                         stringent = stringent, solve.conflicts = solve.conflicts,
                         method = method, maxiter = maxiter,
                         added.edges = added.edges, dropped.edges = dropped.edges,
+                        TTTthresh = TTTthresh,
                         verbose = verbose, cl = cl, chunk.size = chunk.size)
 
   out$adjacency <- structure(out$adjacency, class = 'adjacency.matrix')
+  out$adjacency.prevote <- structure(out$adjacency.prevote, class = 'adjacency.matrix')
   out$input.adjacency <- structure(Adj0, class = 'adjacency.matrix')
   out$Qlabels <- Qlabels
   out$call <- mcall
@@ -103,6 +121,7 @@ MRGN.TTT <- function (data,
                             alpha, FDRcontrol, fdr, lambda, lambda.step, pi0.meth,
                             stringent, solve.conflicts, method, maxiter,
                             added.edges = NULL, dropped.edges = NULL,
+                            TTTthresh = 0,
                             verbose = 0L, cl = NULL, chunk.size = NULL) {
   # Initialize outputs
   triplet.set <- triplet.analysis <- NULL
@@ -446,7 +465,36 @@ MRGN.TTT <- function (data,
 
   }
 
+  # Keep the Step 4 skeleton before the optional TTT vote (returned for comparison)
+  adjacency.prevote <- adjacency
+
+  ## ---- Optional TTTthresh majority vote (re-added 2026-10-29, default off) ----
+  ## Same rule as the TTTthresh option added on 2026-07-26 (commit b2e7ddc) and
+  ## removed on 2026-08-19 (commit 82b2fe6): for "candidate trio (2)" triplets
+  ## [Ti,Tj,Tk] (Ti -> Tj established, Tj - Tk undirected), all triplets testing
+  ## the same Tj-Tk pair are pooled; if the fraction voting M1.1 or M2.1 (i.e. not
+  ## "Other") strictly exceeds TTTthresh, Tj-Tk is directed by the majority of
+  ## those votes (M1.1: Tj -> Tk, M2.1: Tk -> Tj; a tie leaves it undirected).
+  ## Unlike VTTthresh, this never removes an edge (clear.tt = FALSE): Tj-Tk is
+  ## known to exist, so pairs at or below the threshold, or never tested by a
+  ## type-2 triplet, are left as Step 4's sequential pass produced them.
+  if (TTTthresh > 0 && !is.null(triplet.set) && !is.null(triplet.analysis)) {
+    type2 <- triplet.set[, 4] == 2
+    if (any(type2)) {
+      Tidx <- (n_v + 1L):(n_v + n_t)
+      adjacency <- .majority_adj(adjacency = adjacency,
+                                 ts        = triplet.set[type2, , drop = FALSE],
+                                 ana       = triplet.analysis[type2, , drop = FALSE],
+                                 Tidx      = Tidx,
+                                 keep      = c("M1.1", "M2.1"),
+                                 thresh    = TTTthresh,
+                                 clear.tt  = FALSE)
+      Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
+    }
+  }
+
   list(adjacency = adjacency,
+       adjacency.prevote = adjacency.prevote,
        triplet.set = triplet.set,
        iter.nb.triplets = iter.nb.triplets,
        triplet.analysis = triplet.analysis,

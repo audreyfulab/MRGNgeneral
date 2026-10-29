@@ -99,6 +99,11 @@
 #'   unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
 #'   revert to the default \code{0.3}.
 #'
+#' @param TTTthresh Numeric in \eqn{[0, 1]}. Default \code{0}: no Step 4 majority
+#'   vote. When in \eqn{(0, 1]}, the direction of each \code{Tj-Tk} edge tested by
+#'   "candidate trio (2)" triplets is re-decided by majority vote after Step 4; see
+#'   \link{MRGN.TTT}. Never removes an edge. Re-added on 2026-10-29.
+#'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
 #' \link[parallel]{parLapply} (when supplied).
 #'
@@ -214,6 +219,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
                   VTTthresh = 0.3,
+                  TTTthresh = 0,   # NEW (2026-10-29): optional Step 4 majority vote, default off
                   ## ---- NEW (2026-09-17): per-trio, dynamic confounder filter.
                   ## For each [Vi,Tj,Tk] (or [Vi,Tj,Qk]) trio, right before it goes
                   ## into trio analysis, excludes from that trio's confounder set
@@ -243,6 +249,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   # ----------------------------------------------------------------------------
   eval(check.mrgn.args())
   VTTthresh <- .mrgn.check.VTTthresh(VTTthresh)
+  TTTthresh <- .mrgn.check.TTTthresh(TTTthresh)
 
   # ============================================================================
   # Since 2026-10-22, Step 3 (VTT trios + VTTthresh majority vote) and Step 4
@@ -281,6 +288,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                           stringent = stringent, solve.conflicts = solve.conflicts,
                           method = method, maxiter = maxiter,
                           added.edges = added.edges, dropped.edges = dropped.edges,
+                          TTTthresh = TTTthresh,
                           verbose = verbose, cl = cl, chunk.size = chunk.size)
     adjacency <- ttt$adjacency
     added.edges <- ttt$added.edges
@@ -322,6 +330,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
          input.adjacency = structure(Adj0, class = 'adjacency.matrix'),
          Qlabels = Qlabels, niter = niter,
          VTT.adjacency.prevote = vtt$adjacency.prevote,   # NEW (2026-10-22)
+         TTT.adjacency.prevote = ttt$adjacency.prevote,   # NEW (2026-10-29): Step 4 result before the optional TTTthresh vote
          VTT.adjacency = vtt$adjacency,                   # NEW (2026-10-22): skeleton entering Step 4
          cl = cl, chunk.size = chunk.size,
          call = mrgncl),

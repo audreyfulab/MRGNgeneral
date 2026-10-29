@@ -26,6 +26,7 @@ MRGN.TTT(
   maxiter = NULL,
   added.edges = NULL,
   dropped.edges = NULL,
+  TTTthresh = 0,
   parallel = FALSE,
   cl = parallel::getDefaultCluster(),
   chunk.size = NULL,
@@ -92,6 +93,18 @@ steps, used by \link{update.adjacency.matrix} to check conflicts. Default
 \code{NULL} (none), or taken from \code{adjacency} when it is an
 \code{'MRGN.VTT'} or \code{'MRGN'} object.}
 
+\item{TTTthresh}{Numeric in \eqn{[0, 1]}. Default \code{0}: no majority vote,
+Step 4 runs as its sequential pass alone. When in \eqn{(0, 1]}, after Step 4
+the direction of every \code{Tj-Tk} edge tested by "candidate trio (2)"
+triplets (\code{Ti -> Tj - Tk}) is re-decided by majority vote over all such
+triplets: the edge is directed only if the fraction of triplets voting
+\code{M1.1} or \code{M2.1} (as opposed to \code{"Other"}) strictly exceeds
+\code{TTTthresh}, by the majority among those votes (\code{M1.1}:
+\code{Tj -> Tk}; \code{M2.1}: \code{Tk -> Tj}; a tie leaves it undirected).
+Unlike \code{VTTthresh}, this never removes an edge. Values outside
+\eqn{[0, 1]} trigger a warning and revert to \code{0}. Re-added on
+2026-10-29 (first added 2026-07-26, removed 2026-08-19).}
+
 \item{parallel}{Logical, should computations be parallelized? Default is FALSE}
 
 \item{cl, chunk.size}{optional arguments for parallel computing, passed to
@@ -105,7 +118,9 @@ If NULL (default), no seed is set}
 }
 \value{
 an object of class \code{'MRGN.TTT'}, a list with elements
-\code{adjacency}, \code{triplet.set}, \code{iter.nb.triplets},
+\code{adjacency}, \code{adjacency.prevote} (before the optional
+\code{TTTthresh} vote; identical to \code{adjacency} when \code{TTTthresh = 0}),
+\code{triplet.set}, \code{iter.nb.triplets},
 \code{triplet.analysis}, \code{Qtriplet.set}, \code{iter.nb.Qtriplets},
 \code{Qtriplet.analysis}, \code{added.edges}, \code{dropped.edges},
 \code{niter} (number of Step 4 passes, counted separately from Step 3),
