@@ -20,7 +20,7 @@ get.conf.sets(
   FDRcontrol = c("qvalue", "bonferroni", "none"),
   V.FDRcontrol = FDRcontrol,
   T.FDRcontrol = FDRcontrol,
-  C.FDRcontrol = "BH",
+  C.FDRcontrol = "qvalue",
   Q.FDRcontrol = FDRcontrol,
   adjust_by = c("individual", "all", "none"),
   V.adjust_by = adjust_by,
@@ -87,8 +87,9 @@ One of \code{"none"}, \code{"qvalue"} (see \link[qvalue]{qvalue}), or
 \code{"bonferroni"} (see \link[stats]{p.adjust}).
 If any of \code{T.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
 \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
-\code{C.FDRcontrol} does not inherit \code{FDRcontrol}: it defaults to \code{"BH"}
-(since 2026-10-22). In the \code{C}-node selection stage, FDR-controlling
+\code{C.FDRcontrol} does not inherit \code{FDRcontrol}: it defaults to \code{"qvalue"}
+(q-value \code{<= fdr}; since 2026-11-04, \code{"BH"} from 2026-10-22). In the
+\code{C}-node selection stage, FDR-controlling
 \link[stats]{p.adjust} methods (\code{"BH"}, \code{"BY"}, \code{"fdr"}) reject at
 adjusted p-value \code{<= fdr}; other \link[stats]{p.adjust} methods (e.g.
 \code{"bonferroni"}) reject at adjusted p-value \code{<= alpha}.}

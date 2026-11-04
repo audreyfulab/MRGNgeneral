@@ -52,8 +52,9 @@
 #' \code{"bonferroni"} (see \link[stats]{p.adjust}).
 #' If any of \code{T.FDRcontrol}, \code{V.FDRcontrol}, \code{Q.FDRcontrol} is missing,
 #' \code{FDRcontrol} is used, otherwise \code{FDRcontrol} is ignored.
-#' \code{C.FDRcontrol} does not inherit \code{FDRcontrol}: it defaults to \code{"BH"}
-#' (since 2026-10-22). In the \code{C}-node selection stage, FDR-controlling
+#' \code{C.FDRcontrol} does not inherit \code{FDRcontrol}: it defaults to \code{"qvalue"}
+#' (q-value \code{<= fdr}; since 2026-11-04, \code{"BH"} from 2026-10-22). In the
+#' \code{C}-node selection stage, FDR-controlling
 #' \link[stats]{p.adjust} methods (\code{"BH"}, \code{"BY"}, \code{"fdr"}) reject at
 #' adjusted p-value \code{<= fdr}; other \link[stats]{p.adjust} methods (e.g.
 #' \code{"bonferroni"}) reject at adjusted p-value \code{<= alpha}.
@@ -295,12 +296,13 @@ get.conf.sets <- function (data,
                            FDRcontrol = c("qvalue", "bonferroni", "none"),
                            V.FDRcontrol = FDRcontrol,
                            T.FDRcontrol = FDRcontrol,
-                           ## CHANGED (2026-10-22, final version): T-C selection
-                           ## defaults to BH at threshold 'fdr' (0.05), no longer
-                           ## inheriting FDRcontrol. FDR-controlling p.adjust methods
-                           ## ("BH", "BY", "fdr") use 'fdr' as the threshold in this
-                           ## stage; FWER methods (e.g. "bonferroni") still use 'alpha'.
-                           C.FDRcontrol = "BH",
+                           ## T-C selection does not inherit FDRcontrol.
+                           ## CHANGED (2026-11-04): default "qvalue" (q-value <= fdr,
+                           ## 0.05); was "BH" from 2026-10-22. When a p.adjust method is
+                           ## chosen, FDR-controlling ones ("BH", "BY", "fdr") use 'fdr'
+                           ## as the threshold in this stage; FWER methods (e.g.
+                           ## "bonferroni") use 'alpha'.
+                           C.FDRcontrol = "qvalue",
                            Q.FDRcontrol = FDRcontrol,
                            adjust_by = c("individual", "all", "none"),
                            V.adjust_by = adjust_by,
