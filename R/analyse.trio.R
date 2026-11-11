@@ -62,19 +62,12 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                              ## Default TRUE since 2026-10-22 (matches MRGN()).
                              V.trioconfounders.filter = TRUE,
                              V.filter.cutoff = 0.2) {   # was 0.35 before 2026-10-22
+  ## CHANGE (2026-11-11): the separate 'none' branch is removed; "none" now goes
+  ## through the p.adjust branch below (p.adjust(method = "none") leaves the
+  ## p-values unchanged, threshold alpha). The old branch used the model computed
+  ## inside MRGN::infer.trio() (no NA guard) and crashed in rbind() as soon as one
+  ## trio failed (fallback row had fewer columns).
   switch(FDRcontrol,
-         none = { # No correction
-           all.stats <- matteApply(trio.set,
-                                   MARGIN = 1,
-                                   FUN = analyse.trio.i,
-                                   Qlabels = Qlabels,
-                                   data = data, confounders = confounders, n_t = n_t, n_v = n_v,
-                                   use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
-                                   alpha = alpha, nperms = nperms, half1 = FALSE, verbose = verbose > 1,
-                                   V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
-                                   cl = cl, chunk.size = chunk.size)
-           all.stats <- do.call('rbind', all.stats)
-         },
          qvalue = { # qvalue method
            # Half trio analysis
            all.stats <- matteApply(trio.set,
@@ -163,7 +156,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
            all.stats$Inferred.Model0 <- Inferred.Model0
 
          },
-         { # BH (MRGN() default since 2026-10-22), Bonferroni and all other stats::p.adjust methods
+         { # BH (MRGN() default since 2026-10-22), Bonferroni, "none" and all other stats::p.adjust methods
            # Half trio analysis
            all.stats <- matteApply(trio.set,
                                    MARGIN = 1,
@@ -189,7 +182,9 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
            p.adj <- matrix(NA_real_, nrow = nb.trios, ncol = 6)
            p.adj[, -4] <- stats::p.adjust(as.vector(p.raw[, -4]), method = FDRcontrol)
            p.adj[, 4] <- p.adj[, 2]
-           all.stats <- cbind(p.adj <= fdr, p.adj,
+           # "none": no correction, significant if p < alpha (as inside MRGN::infer.trio)
+           sig <- if (identical(FDRcontrol, "none")) p.adj < alpha else p.adj <= fdr
+           all.stats <- cbind(sig, p.adj,
                               Minor.freq = all.stats[,7])
            all.stats = as.data.frame(all.stats)
            colnames(all.stats) <- c("b11","b12", "b21","b22", "V1:T1", "V1:T2", "pb11",
@@ -216,7 +211,9 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
   ## silently compared/wrote the wrong column and this reclassification never
   ## fired. Columns 1:13 (b11..Minor.freq) are unaffected by the new columns and
   ## still safe to pass to class.other() positionally.
-  Others <- all.stats[, "Inferred.Model"] == "Other"
+  ## (2026-11-11: the "none" branch no longer exists -- all branches now return
+  ## columns 1:13 + Inferred.Model + Inferred.Model0; %in% guards against NA models.)
+  Others <- all.stats[, "Inferred.Model"] %in% "Other"
   if (any(Others)) {
     all.stats[Others, "Inferred.Model"] <- c(matteApply(all.stats[Others, 1:13, drop = FALSE],
                                           MARGIN = 1, FUN = class.other,

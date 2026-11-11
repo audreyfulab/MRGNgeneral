@@ -3,19 +3,11 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
                                  alpha, FDRcontrol, fdr, lambda, lambda.step, pi0.meth = "bootstrap",
                                  data, confounders, n_t, n_v, verbose,
                                  cl = NULL, chunk.size = NULL) {
+  ## CHANGE (2026-11-11): the separate 'none' branch is removed; "none" now goes
+  ## through the p.adjust branch below (no correction, threshold alpha), so an NA
+  ## p-value gives "Other" as in the other branches (the old branch, via
+  ## infer.trio(), treated NA as not rejected, i.e. M1.1 for type-2 triplets).
   switch(FDRcontrol,
-         none = {
-           all.stats <- matteApply(triplet.set,
-                                          MARGIN = 1,
-                                          FUN = analyse.triplet.i,
-                                          Qlabels = Qlabels,
-                                          data, n_t = n_t, n_v = n_v,
-                                          confounders = confounders,
-                                          alpha = alpha, half1 = FALSE,
-                                          verbose = verbose > 1,
-                                          cl = cl, chunk.size  = chunk.size)
-           all.stats <- do.call('rbind', all.stats)
-         },
          qvalue = { # qvalue method
            # Half trio analysis
            all.stats <- matteApply(triplet.set,
@@ -75,7 +67,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
            colnames(all.stats) <- c("rej", "pval", "Inferred.Model")
 
          },
-         { # BH (default), Bonferroni and all other stats::p.adjust methods
+         { # BH (default), Bonferroni, "none" and all other stats::p.adjust methods
            # Half trio analysis
            all.stats <- matteApply(triplet.set,
                                    MARGIN = 1,
@@ -88,7 +80,8 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
 
            # p.adjust correction (BH, Bonferroni, ...)
            p.adj <- stats::p.adjust(c(all.stats), method = FDRcontrol)
-           rej <- p.adj <= fdr
+           # "none": no correction, rejected if p < alpha (as inside infer.triplet())
+           rej <- if (identical(FDRcontrol, "none")) p.adj < alpha else p.adj <= fdr
            ## CHANGE (2026-11-11): NA kept; NA -> "Other" (no direction), see triplet.model()
            model <- triplet.model(rej, triplet.set[,4])
            all.stats <- cbind(rej,
