@@ -3,7 +3,7 @@
 #' Run Step 3 of the MRGN algorithm on its own: form \code{[Vi,Tj,Tk]} (and
 #' \code{[Vi,Tj,Qk]}) trios from the current skeleton, infer each trio's causal
 #' structure, update the adjacency matrix, and iterate as long as new edges are
-#' added; then (if \code{VTTthresh > 0}) replace the \code{T}-\code{T} block by
+#' added; then (if \code{majority.thresh > 0}) replace the \code{T}-\code{T} block by
 #' the majority vote over all VTT trios. This is exactly the VTT part of
 #' \link{MRGN}, split out on 2026-10-22 so that it can be called separately,
 #' e.g. to inspect the VTT result before running \link{MRGN.TTT} on it.
@@ -14,7 +14,7 @@
 #' \describe{
 #' \item{\code{adjacency}}{the adjacency matrix after Step 3 and the majority vote.}
 #' \item{\code{adjacency.prevote}}{the adjacency matrix after Step 3, before the
-#' \code{VTTthresh} majority vote (identical to \code{adjacency} when \code{VTTthresh = 0}).}
+#' majority vote (identical to \code{adjacency} when \code{majority.thresh = 0}).}
 #' \item{\code{trio.set}, \code{trio.analysis}, \code{iter.nb.trios}}{all
 #' \code{[Vi,Tj,Tk]} trios analysed, their analysis results, and the number of
 #' trios formed at each iteration.}
@@ -56,7 +56,7 @@ MRGN.VTT <- function (data,
                       cl = parallel::getDefaultCluster(),
                       chunk.size = NULL,
                       verbose = 0L,
-                      VTTthresh = 0.3,
+                      majority.thresh = 0.3,
                       V.trioconfounders.filter = TRUE,
                       V.filter.cutoff = 0.2,
                       seed = NULL) {
@@ -68,7 +68,7 @@ MRGN.VTT <- function (data,
   chunk.size <- par.setup$chunk.size
 
   eval(check.mrgn.args())
-  VTTthresh <- .mrgn.check.VTTthresh(VTTthresh)
+  majority.thresh <- .mrgn.check.majority.thresh(majority.thresh)
 
   out <- .MRGN.VTT.core(data = data, adjacency = adjacency,
                         n_v = n_v, n_t = n_t, n_q = n_q, Qlabels = Qlabels,
@@ -77,7 +77,7 @@ MRGN.VTT <- function (data,
                         lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
                         use.perm = use.perm, gamma = gamma, is.CNA = is.CNA, nperms = nperms,
                         stringent = stringent, solve.conflicts = solve.conflicts,
-                        method = method, maxiter = maxiter, VTTthresh = VTTthresh,
+                        method = method, maxiter = maxiter, majority.thresh = majority.thresh,
                         V.trioconfounders.filter = V.trioconfounders.filter,
                         V.filter.cutoff = V.filter.cutoff,
                         verbose = verbose, cl = cl, chunk.size = chunk.size)
@@ -90,7 +90,7 @@ MRGN.VTT <- function (data,
   structure(out, class = "MRGN.VTT")
 }
 
-# Internal worker for Step 3 (VTT trios + VTTthresh majority vote). Assumes the
+# Internal worker for Step 3 (VTT trios + majority vote). Assumes the
 # arguments have already been checked/formatted by check.mrgn.args() -- called
 # by MRGN() (which checks once for both steps) and by MRGN.VTT().
 # Body moved verbatim from MRGN() on 2026-10-22 (only the bookkeeping of
@@ -98,7 +98,7 @@ MRGN.VTT <- function (data,
 .MRGN.VTT.core <- function (data, adjacency, n_v, n_t, n_q, Qlabels, confounders,
                             alpha, FDRcontrol, fdr, lambda, lambda.step, pi0.meth,
                             use.perm, gamma, is.CNA, nperms,
-                            stringent, solve.conflicts, method, maxiter, VTTthresh,
+                            stringent, solve.conflicts, method, maxiter, majority.thresh,
                             V.trioconfounders.filter, V.filter.cutoff,
                             verbose = 0L, cl = NULL, chunk.size = NULL) {
   ### Save the current Adjacency matrix
@@ -453,15 +453,15 @@ MRGN.VTT <- function (data,
   # Keep the Step 3 skeleton before the vote (returned for comparison)
   adjacency.prevote <- adjacency
 
-  # Apply VTTthresh majority vote on T-T block before Step 4 so that Step 4
+  # Apply the majority vote on T-T block before Step 4 so that Step 4
   # propagates from the majority-vote skeleton rather than the raw iterative skeleton.
-  if (VTTthresh > 0 && !is.null(trio.set) && !is.null(trio.analysis)) {
+  if (majority.thresh > 0 && !is.null(trio.set) && !is.null(trio.analysis)) {
     Tidx <- (n_v + 1L):(n_v + n_t)
     adjacency <- .majority_adj(adjacency = adjacency,
                                ts        = trio.set,
                                ana       = trio.analysis,
                                Tidx      = Tidx,
-                               thresh    = VTTthresh)
+                               thresh    = majority.thresh)
     Not.fully.directed <- any(rowSums((adjacency + t(adjacency)) == 2) > 0)
   }
 
@@ -479,7 +479,8 @@ MRGN.VTT <- function (data,
        Not.fully.directed = Not.fully.directed)
 }
 
-# VTTthresh majority vote over VTT trios (moved from R/MRGN.R on 2026-10-22)
+# Majority vote over VTT trios (moved from R/MRGN.R on 2026-10-22); also used
+# for the TTT vote in MRGN.TTT(). Both are switched by majority.thresh (2026-11-09).
 .majority_adj <- function(adjacency, ts, ana, Tidx,        # Tidx = which rows/cols of adjacency are T-nodes
                           keep = c("M1.1","M1.2","M2.1","M2.2","M4","Other.1"),
                           thresh = 0.5, clear.tt = TRUE) {
@@ -493,7 +494,7 @@ MRGN.VTT <- function (data,
   ok <- !is.na(md); ts <- ts[ok, , drop = FALSE]; md <- md[ok]  # drop trios with no classification (NA) before using md/ts below
 
   A <- adjacency                          # a copy
-  if (clear.tt) A[Tidx, Tidx] <- 0        # VTT: wipe the whole T-T block first; only pairs the vote approves below get restored. clear.tt = FALSE skips this and leaves existing edges alone (used by the optional TTTthresh vote in MRGN.TTT(), which only re-directs edges)
+  if (clear.tt) A[Tidx, Tidx] <- 0        # VTT: wipe the whole T-T block first; only pairs the vote approves below get restored. clear.tt = FALSE skips this and leaves existing edges alone (used by the TTT vote in MRGN.TTT(), which only re-directs edges)
 
   lo <- pmin(ts[,2], ts[,3]); hi <- pmax(ts[,2], ts[,3])  # canonical (lo,hi) so the same pair gets the same key regardless of column order
   key <- paste0(lo, ".", hi)              # one key per Tj-Tk pair; pools all trios that tested it, whatever the third node (Vi or Ti) was

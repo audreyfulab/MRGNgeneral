@@ -60,7 +60,7 @@
 #'   Default is "bootstrap"
 #'
 #' @param analyse.trios Logical, should Step 3 (VTT trios, followed by the
-#'   \code{VTTthresh} majority vote; see \link{MRGN.VTT}) be run? Default is TRUE.
+#'   majority vote; see \link{MRGN.VTT}) be run? Default is TRUE.
 #'   With \code{FALSE}, Step 4 (if requested) runs directly on \code{adjacency}.
 #'   Added 2026-10-22.
 #'
@@ -89,20 +89,21 @@
 #' \code{'M2'} trio structures be dropped during adjacency matrix update?
 #' Passed to \link{update.adjacency.matrix}.
 #'
-#' @param VTTthresh Numeric in \eqn{[0, 1]}. Defaults to \code{0.3}: the T-T
-#'   block of the final adjacency matrix is replaced by a majority-vote
-#'   procedure over all VTT trios. A T-T edge is retained only if the fraction
-#'   of trios supporting it (via models \code{M1.1}, \code{M1.2}, \code{M2.1},
-#'   \code{M2.2}, \code{M4}, or \code{Other.1}) strictly exceeds
-#'   \code{VTTthresh}, and its direction is determined by majority vote among
-#'   directional models. Set to \code{0} to run the original MRGN algorithm
-#'   unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
-#'   revert to the default \code{0.3}.
-#'
-#' @param TTTthresh Numeric in \eqn{[0, 1]}. Default \code{0}: no Step 4 majority
-#'   vote. When in \eqn{(0, 1]}, the direction of each \code{Tj-Tk} edge tested by
-#'   "candidate trio (2)" triplets is re-decided by majority vote after Step 4; see
-#'   \link{MRGN.TTT}. Never removes an edge. Re-added on 2026-10-29.
+#' @param majority.thresh Numeric in \eqn{[0, 1]}, one switch and threshold for
+#'   both majority votes. Default \code{0.3}: both votes are on. \code{0}: no
+#'   majority vote in Step 3 or Step 4 (the original MRGN algorithm). Values
+#'   outside \eqn{[0, 1]} trigger a warning and revert to \code{0.3}.
+#'   \itemize{
+#'   \item Step 3 (VTT, see \link{MRGN.VTT}): the T-T block is rebuilt from all
+#'   VTT trios. A T-T edge is kept only if the fraction of trios supporting it
+#'   (models \code{M1.1}, \code{M1.2}, \code{M2.1}, \code{M2.2}, \code{M4},
+#'   \code{Other.1}) strictly exceeds \code{majority.thresh}; its direction is
+#'   decided by majority among the directional models.
+#'   \item Step 4 (TTT, see \link{MRGN.TTT}): the direction of each \code{Tj-Tk}
+#'   edge tested by "candidate trio (2)" triplets is re-decided by majority vote.
+#'   Never removes an edge.
+#'   }
+#'   Replaces \code{VTTthresh} and \code{TTTthresh} (merged on 2026-11-09).
 #'
 #' @param cl,chunk.size optional arguments for parallel computing, passed to
 #' \link[parallel]{parLapply} (when supplied).
@@ -128,7 +129,7 @@
 #' The returned \code{niter} is \code{1 +} (extra Step 3 iterations) \code{+}
 #' (extra Step 4 iterations). The output also contains \code{VTT.adjacency.prevote}
 #' and \code{VTT.adjacency}, the skeleton after Step 3 before and after the
-#' \code{VTTthresh} majority vote (\code{NULL} if \code{analyse.trios = FALSE}).
+#' majority vote (\code{NULL} if \code{analyse.trios = FALSE}).
 #'
 #' @seealso \link{MRGN.VTT}, \link{MRGN.TTT}; \link[MRGN]{infer.trio} for inferring edges in small networks of one
 #'  genetic variant and only two genes.
@@ -218,8 +219,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   cl = parallel::getDefaultCluster(),
                   chunk.size = NULL, # scalar number; number of invocations of fun or FUN in one chunk; a chunk is a unit for scheduling.
                   verbose = 0L,
-                  VTTthresh = 0.3,
-                  TTTthresh = 0,   # NEW (2026-10-29): optional Step 4 majority vote, default off
+                  majority.thresh = 0.3,   # CHANGED (2026-11-09): replaces VTTthresh (0.3) and TTTthresh (0)
                   ## ---- NEW (2026-09-17): per-trio, dynamic confounder filter.
                   ## For each [Vi,Tj,Tk] (or [Vi,Tj,Qk]) trio, right before it goes
                   ## into trio analysis, excludes from that trio's confounder set
@@ -248,11 +248,10 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   # Check arguments & Pre-process some inputs (done once for both steps)
   # ----------------------------------------------------------------------------
   eval(check.mrgn.args())
-  VTTthresh <- .mrgn.check.VTTthresh(VTTthresh)
-  TTTthresh <- .mrgn.check.TTTthresh(TTTthresh)
+  majority.thresh <- .mrgn.check.majority.thresh(majority.thresh)
 
   # ============================================================================
-  # Since 2026-10-22, Step 3 (VTT trios + VTTthresh majority vote) and Step 4
+  # Since 2026-10-22, Step 3 (VTT trios + majority vote) and Step 4
   # (TTT triplets) live in R/MRGN.VTT.R and R/MRGN.TTT.R; MRGN() calls their
   # internal workers in turn. Each step can also be run on its own with the
   # exported MRGN.VTT() / MRGN.TTT().
@@ -260,7 +259,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   vtt <- ttt <- NULL
   added.edges <- dropped.edges <- NULL
 
-  ### Step 3: VTT trio analysis (+ VTTthresh majority vote)
+  ### Step 3: VTT trio analysis (+ majority vote)
   if (analyse.trios) {
     vtt <- .MRGN.VTT.core(data = data, adjacency = adjacency,
                           n_v = n_v, n_t = n_t, n_q = n_q, Qlabels = Qlabels,
@@ -269,7 +268,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                           lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
                           use.perm = use.perm, gamma = gamma, is.CNA = is.CNA, nperms = nperms,
                           stringent = stringent, solve.conflicts = solve.conflicts,
-                          method = method, maxiter = maxiter, VTTthresh = VTTthresh,
+                          method = method, maxiter = maxiter, majority.thresh = majority.thresh,
                           V.trioconfounders.filter = V.trioconfounders.filter,
                           V.filter.cutoff = V.filter.cutoff,
                           verbose = verbose, cl = cl, chunk.size = chunk.size)
@@ -288,7 +287,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                           stringent = stringent, solve.conflicts = solve.conflicts,
                           method = method, maxiter = maxiter,
                           added.edges = added.edges, dropped.edges = dropped.edges,
-                          TTTthresh = TTTthresh,
+                          majority.thresh = majority.thresh,
                           verbose = verbose, cl = cl, chunk.size = chunk.size)
     adjacency <- ttt$adjacency
     added.edges <- ttt$added.edges
@@ -330,7 +329,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
          input.adjacency = structure(Adj0, class = 'adjacency.matrix'),
          Qlabels = Qlabels, niter = niter,
          VTT.adjacency.prevote = vtt$adjacency.prevote,   # NEW (2026-10-22)
-         TTT.adjacency.prevote = ttt$adjacency.prevote,   # NEW (2026-10-29): Step 4 result before the optional TTTthresh vote
+         TTT.adjacency.prevote = ttt$adjacency.prevote,   # NEW (2026-10-29): Step 4 result before the majority vote
          VTT.adjacency = vtt$adjacency,                   # NEW (2026-10-22): skeleton entering Step 4
          cl = cl, chunk.size = chunk.size,
          call = mrgncl),

@@ -34,8 +34,7 @@ MRGN(
   cl = parallel::getDefaultCluster(),
   chunk.size = NULL,
   verbose = 0L,
-  VTTthresh = 0.3,
-  TTTthresh = 0,
+  majority.thresh = 0.3,
   V.trioconfounders.filter = TRUE,
   V.filter.cutoff = 0.2,
   seed = NULL
@@ -96,7 +95,7 @@ Default is "bootstrap"}
 Passed to \link{update.adjacency.matrix}.}
 
 \item{analyse.trios}{Logical, should Step 3 (VTT trios, followed by the
-\code{VTTthresh} majority vote; see \link{MRGN.VTT}) be run? Default is TRUE.
+majority vote; see \link{MRGN.VTT}) be run? Default is TRUE.
 With \code{FALSE}, Step 4 (if requested) runs directly on \code{adjacency}.
 Added 2026-10-22.}
 
@@ -120,20 +119,21 @@ If NULL (default), no limit is imposed}
 \item{verbose}{Integer, verbosity level. 0 (default) for minimal output, higher values
 for more detailed progress messages}
 
-\item{VTTthresh}{Numeric in \eqn{[0, 1]}. Defaults to \code{0.3}: the T-T
-block of the final adjacency matrix is replaced by a majority-vote
-procedure over all VTT trios. A T-T edge is retained only if the fraction
-of trios supporting it (via models \code{M1.1}, \code{M1.2}, \code{M2.1},
-\code{M2.2}, \code{M4}, or \code{Other.1}) strictly exceeds
-\code{VTTthresh}, and its direction is determined by majority vote among
-directional models. Set to \code{0} to run the original MRGN algorithm
-unchanged instead. Values outside \eqn{[0, 1]} trigger a warning and
-revert to the default \code{0.3}.}
-
-\item{TTTthresh}{Numeric in \eqn{[0, 1]}. Default \code{0}: no Step 4 majority
-vote. When in \eqn{(0, 1]}, the direction of each \code{Tj-Tk} edge tested by
-"candidate trio (2)" triplets is re-decided by majority vote after Step 4; see
-\link{MRGN.TTT}. Never removes an edge. Re-added on 2026-10-29.}
+\item{majority.thresh}{Numeric in \eqn{[0, 1]}, one switch and threshold for
+both majority votes. Default \code{0.3}: both votes are on. \code{0}: no
+majority vote in Step 3 or Step 4 (the original MRGN algorithm). Values
+outside \eqn{[0, 1]} trigger a warning and revert to \code{0.3}.
+\itemize{
+\item Step 3 (VTT, see \link{MRGN.VTT}): the T-T block is rebuilt from all
+VTT trios. A T-T edge is kept only if the fraction of trios supporting it
+(models \code{M1.1}, \code{M1.2}, \code{M2.1}, \code{M2.2}, \code{M4},
+\code{Other.1}) strictly exceeds \code{majority.thresh}; its direction is
+decided by majority among the directional models.
+\item Step 4 (TTT, see \link{MRGN.TTT}): the direction of each \code{Tj-Tk}
+edge tested by "candidate trio (2)" triplets is re-decided by majority vote.
+Never removes an edge.
+}
+Replaces \code{VTTthresh} and \code{TTTthresh} (merged on 2026-11-09).}
 
 \item{V.trioconfounders.filter}{logical, should each trio's confounder set be
 dynamically filtered, right before that trio's analysis, to exclude any
@@ -162,7 +162,7 @@ Steps 3 and 4 keep separate iteration counters, each limited by \code{maxiter}.
 The returned \code{niter} is \code{1 +} (extra Step 3 iterations) \code{+}
 (extra Step 4 iterations). The output also contains \code{VTT.adjacency.prevote}
 and \code{VTT.adjacency}, the skeleton after Step 3 before and after the
-\code{VTTthresh} majority vote (\code{NULL} if \code{analyse.trios = FALSE}).
+majority vote (\code{NULL} if \code{analyse.trios = FALSE}).
 }
 \examples{
 ## Run MRGN on the 'networkA11' data

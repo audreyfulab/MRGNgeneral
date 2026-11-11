@@ -22,22 +22,15 @@
   list(cl = cl, chunk.size = chunk.size)
 }
 
-# Internal: validate VTTthresh (shared by MRGN() and MRGN.VTT())
-.mrgn.check.VTTthresh <- function (VTTthresh) {
-  if (!is.numeric(VTTthresh) || length(VTTthresh) != 1 || VTTthresh < 0 || VTTthresh > 1) {
-    warning("VTTthresh must be a numeric value in [0, 1]; reverting to default 0.3.")
-    VTTthresh <- 0.3
+# Internal: validate majority.thresh (shared by MRGN(), MRGN.VTT() and MRGN.TTT()).
+# Since 2026-11-09 this one argument replaces VTTthresh and TTTthresh: 0 = no
+# majority vote in Step 3 or Step 4; > 0 = both votes on, with this threshold.
+.mrgn.check.majority.thresh <- function (majority.thresh) {
+  if (!is.numeric(majority.thresh) || length(majority.thresh) != 1 || majority.thresh < 0 || majority.thresh > 1) {
+    warning("majority.thresh must be a numeric value in [0, 1]; reverting to default 0.3.")
+    majority.thresh <- 0.3
   }
-  VTTthresh
-}
-
-# Internal: validate TTTthresh (shared by MRGN() and MRGN.TTT(); default 0 = off)
-.mrgn.check.TTTthresh <- function (TTTthresh) {
-  if (!is.numeric(TTTthresh) || length(TTTthresh) != 1 || TTTthresh < 0 || TTTthresh > 1) {
-    warning("TTTthresh must be a numeric value in [0, 1]; reverting to default 0.")
-    TTTthresh <- 0
-  }
-  TTTthresh
+  majority.thresh
 }
 
 # An internal function to generate the code to check MRGN arguments
