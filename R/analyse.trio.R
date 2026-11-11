@@ -88,56 +88,18 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
            Inferred.Model0 <- all.stats[,"Inferred.Model"]
 
            # FDR control: apply qvalue correction
-           ## CHANGE (2026-11-11): pb22 has the same p-value as pb12 (see the BH
-           ## branch below), so only the 5 distinct columns enter the correction.
-           pv <- as.vector(as.matrix(all.stats[, c(1:3, 5, 6)]))
-           if (is.null(lambda)) {
-             lambda <- seq(min(c(pv, lambda.step), na.rm = T),
-                           max(c(pv, lambda.step), na.rm = T), lambda.step)
-           }
-
-           Qvalues <- catch.conditions (adjust.q (pv, fdr = fdr,
-                                                  lambda = lambda, pi0.meth = pi0.meth))$value
-           if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-             if (identical(pi0.meth, "smoother")) {
-               if (verbose) {
-                 cat("      #         * q value correction with 'pi0.meth = smoother' failled, trying 'pi0.meth = bootstrap'  \n")
-               }
-               Qvalues <- catch.conditions (adjust.q (pv, fdr = fdr,
-                                                      lambda = lambda, pi0.meth = "bootstrap"))$value
-             }
-             if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-               if ((ll <- length(lambda)) > 1) {
-                 Qvalues <- catch.conditions (adjust.q (pv,
-                                                        fdr = fdr, lambda = lambda[ll],
-                                                        pi0.meth = pi0.meth))$value
-                 if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-                   Qvalues <- catch.conditions (adjust.q (pv,
-                                                          fdr = fdr, lambda = lambda[1],
-                                                          pi0.meth = pi0.meth))$value
-                 }
-               }
-
-               #if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-               #  Qvalues <- catch.conditions (adjust.q (pv,
-               #                                         fdr = fdr, lambda = 0.05,
-               #                                         pi0.meth = pi0.meth))$value
-               #}
-
-               if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
-                 if (verbose) {
-                   cat("            -- 'qvalue::qvalue' failed. q value correction skiped. \n")
-                 }
-                 Qvalues <- list(qvalue = pv,
-                                 significant = pv <= alpha)
-               }
-             }
-           }
-
-           # Back to 6 columns: copy the pb12 result into pb22 (column 4)
+           ## CHANGE (2026-11-11): q-value correction is done separately for three
+           ## groups of tests, each pooled over all trios (see trio.fdr.groups):
+           ## (pb11, pb12, pb21), pV1:T1, pV1:T2. pb22 has the same p-value as pb12
+           ## (see the BH branch below), so it is left out and gets pb12's result.
            sig <- q.val <- matrix(NA_real_, nrow = nb.trios, ncol = 6)
-           sig[, -4] <- Qvalues$significant
-           q.val[, -4] <- Qvalues$qvalue
+           for (g in trio.fdr.groups) {
+             Qvalues <- trio.qvalue(as.vector(as.matrix(all.stats[, g])), fdr = fdr,
+                                    lambda = lambda, lambda.step = lambda.step,
+                                    pi0.meth = pi0.meth, alpha = alpha, verbose = verbose)
+             sig[, g] <- Qvalues$significant
+             q.val[, g] <- Qvalues$qvalue
+           }
            sig[, 4] <- sig[, 2]
            q.val[, 4] <- q.val[, 2]
            all.stats <- cbind(sig, q.val,
@@ -172,15 +134,19 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
            ## fix in the qvalue branch above for the full explanation.
            Inferred.Model0 <- all.stats[,"Inferred.Model"]
 
-           # p.adjust correction (BH, Bonferroni, ...), pooled over all trios' p-values
-           ## CHANGE (2026-11-11): pb12 (T2 in T1 ~ V + T2 + conf) and pb22 (T1 in
-           ## T2 ~ V + T1 + conf) test the same partial correlation of T1 and T2, so
-           ## they have the same t statistic and p-value. Count it once: adjust the
-           ## 5 distinct columns (pb22 left out), then copy adjusted pb12 into pb22.
+           # p.adjust correction (BH, Bonferroni, ...)
+           ## CHANGE (2026-11-11): the correction is done separately for three groups
+           ## of tests, each pooled over all trios (see trio.fdr.groups):
+           ## (pb11, pb12, pb21), pV1:T1, pV1:T2.
+           ## pb12 (T2 in T1 ~ V + T2 + conf) and pb22 (T1 in T2 ~ V + T1 + conf)
+           ## test the same partial correlation of T1 and T2, so they have the same
+           ## t statistic and p-value: pb22 is left out and gets adjusted pb12.
            ## (Exact only without permutation; use.perm = FALSE is the default.)
            p.raw <- as.matrix(all.stats[, 1:6])
            p.adj <- matrix(NA_real_, nrow = nb.trios, ncol = 6)
-           p.adj[, -4] <- stats::p.adjust(as.vector(p.raw[, -4]), method = FDRcontrol)
+           for (g in trio.fdr.groups) {
+             p.adj[, g] <- stats::p.adjust(as.vector(p.raw[, g]), method = FDRcontrol)
+           }
            p.adj[, 4] <- p.adj[, 2]
            # "none": no correction, significant if p < alpha (as inside MRGN::infer.trio)
            sig <- if (identical(FDRcontrol, "none")) p.adj < alpha else p.adj <= fdr
@@ -191,8 +157,9 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                     "pb12", "pb21","pb22","pV1:T1","pV1:T2", "Minor.freq")
 
            # Infer model structure (Second half trio analysis)
-           ## CHANGE (2026-11-11): NAs are kept (no longer replaced by FALSE), so an
-           ## undetermined test leads to 'Other' -> class.other() -> 'Other.1' (edge kept).
+           ## CHANGE (2026-11-11): NAs are kept (no longer replaced by FALSE). A trio
+           ## with NA tests gives 'Other'; class.other() then gives 'Other.1' if b12
+           ## or b22 is significant, else 'Other.2' (an NA b12/b22 drops the edge).
            ## safe.class.vec() guards the one case where class.vec() would crash.
            all.stats$Inferred.Model <- c(matteApply(all.stats, MARGIN = 1, FUN = safe.class.vec,
                                                     cl = cl, chunk.size = chunk.size))
@@ -311,6 +278,53 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
     trio.res
 }
 
+### Groups of trio tests corrected separately for multiple testing (added 2026-11-11).
+## Columns of the half-trio p-values: 1 pb11, 2 pb12, 3 pb21, 4 pb22, 5 pV1:T1, 6 pV1:T2.
+## Each group is pooled over all trios of the iteration. pb22 (= pb12) is in no group.
+trio.fdr.groups <- list(c(1, 2, 3), 5, 6)
+
+### q-value correction of one vector of p-values, with the fall-backs used before
+## 2026-11-11 (moved here from analyse.trio.set so it can be run for each group)
+trio.qvalue <- function (pv, fdr, lambda, lambda.step, pi0.meth, alpha, verbose) {
+  if (is.null(lambda)) {
+    lambda <- seq(min(c(pv, lambda.step), na.rm = T),
+                  max(c(pv, lambda.step), na.rm = T), lambda.step)
+  }
+
+  Qvalues <- catch.conditions (adjust.q (pv, fdr = fdr,
+                                         lambda = lambda, pi0.meth = pi0.meth))$value
+  if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
+    if (identical(pi0.meth, "smoother")) {
+      if (verbose) {
+        cat("      #         * q value correction with 'pi0.meth = smoother' failled, trying 'pi0.meth = bootstrap'  \n")
+      }
+      Qvalues <- catch.conditions (adjust.q (pv, fdr = fdr,
+                                             lambda = lambda, pi0.meth = "bootstrap"))$value
+    }
+    if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
+      if ((ll <- length(lambda)) > 1) {
+        Qvalues <- catch.conditions (adjust.q (pv,
+                                               fdr = fdr, lambda = lambda[ll],
+                                               pi0.meth = pi0.meth))$value
+        if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
+          Qvalues <- catch.conditions (adjust.q (pv,
+                                                 fdr = fdr, lambda = lambda[1],
+                                                 pi0.meth = pi0.meth))$value
+        }
+      }
+
+      if (any(class(Qvalues) %in% c("simpleError", "error", "condition"))) {
+        if (verbose) {
+          cat("            -- 'qvalue::qvalue' failed. q value correction skiped. \n")
+        }
+        Qvalues <- list(qvalue = pv,
+                        significant = pv <= alpha)
+      }
+    }
+  }
+  Qvalues
+}
+
 ### NA-safe wrapper of MRGN::class.vec (added 2026-11-11)
 ## class.vec() crashes ("missing value where TRUE/FALSE needed") when b11..b22 are
 ## all significant and a marginal test (V1:T1 or V1:T2) is NA. Return 'Other' there
@@ -322,12 +336,15 @@ safe.class.vec <- function (vec) {
 }
 
 ### Distinguish 'Other.1' and 'Other.2' trio structures
+## CHANGE (2026-11-11): an undetermined (NA) b12/b22 no longer gives 'Other.1'.
+## Before: Other.1 if b12 or b22 was significant OR NA. Now: Other.1 only if at
+## least one of them is significant (NA ignored); anything else is Other.2.
 class.other <- function (vec) {
-  # Look at pb12 and pb22
-  if (any(is.na(vec[c(2,4)])) || any(vec[c(2,4)] == 1)) {
-    return("Other.1") # We keep an edge ("Other.1") if the partial correlation is significant or undetermined (NA)
+  # Look at b12 and b22 (significance of the T1-T2 partial correlation)
+  if (any(vec[c(2,4)] == 1, na.rm = TRUE)) {
+    return("Other.1") # We keep an edge ("Other.1") if the partial correlation is significant
   }
   else {
-    return("Other.2")
+    return("Other.2") # not significant, or undetermined (NA): the edge is dropped
   }
 }
