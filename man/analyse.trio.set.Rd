@@ -18,7 +18,7 @@ analyse.trio.set(
   confounders,
   n_v,
   n_t,
-  use.perm,
+  use.perm = FALSE,
   gamma,
   is.CNA,
   nperms,

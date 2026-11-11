@@ -65,15 +65,9 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
              }
            }
 
-           model <- character(length = nb.triplets)
-           Qvalues$significant[is.na(Qvalues$significant)] <- FALSE # Treat NA as not rejected (inconclusive)
-           if (any(Qvalues$significant))
-             model[Qvalues$significant] <- "M2.1"
-           if (any(!Qvalues$significant)) {
-             type <- triplet.set[,4][!Qvalues$significant]
-             model[!Qvalues$significant][type == 2] <- "M1.1"
-             model[!Qvalues$significant][type != 2] <- "Other"
-           }
+           ## CHANGE (2026-11-11): NA is no longer treated as "not rejected" (which
+           ## gave type-2 triplets M1.1, i.e. a direction). NA -> "Other" (no direction).
+           model <- triplet.model(Qvalues$significant, triplet.set[,4])
            all.stats <- cbind(Qvalues$significant,
                               Qvalues$qvalue,
                               model)
@@ -81,7 +75,7 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
            colnames(all.stats) <- c("rej", "pval", "Inferred.Model")
 
          },
-         { # Bonferroni and other method
+         { # BH (default), Bonferroni and all other stats::p.adjust methods
            # Half trio analysis
            all.stats <- matteApply(triplet.set,
                                    MARGIN = 1,
@@ -92,18 +86,11 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
                                    half1 = TRUE, verbose = verbose > 1,
                                    cl = cl, chunk.size  = chunk.size)
 
-           # Bonferroni correction
+           # p.adjust correction (BH, Bonferroni, ...)
            p.adj <- stats::p.adjust(c(all.stats), method = FDRcontrol)
            rej <- p.adj <= fdr
-           rej[is.na(rej)] <- FALSE # Treat NA as not rejected (inconclusive)
-           model <- character(length = nb.triplets)
-           if (any(rej))
-             model[rej] <- "M2.1"
-           if (any(!rej)) {
-             type <- triplet.set[,4][!rej]
-             model[!rej][type == 2] <- "M1.1"
-             model[!rej][type != 2] <- "Other"
-           }
+           ## CHANGE (2026-11-11): NA kept; NA -> "Other" (no direction), see triplet.model()
+           model <- triplet.model(rej, triplet.set[,4])
            all.stats <- cbind(rej,
                               p.adj,
                               model)
@@ -115,6 +102,17 @@ analyse.triplet.set <- function (triplet.set, nb.triplets = NROW(triplet.set), Q
 
   return(all.stats)
 
+}
+
+# Triplet model from the (adjusted) rejection decision (added 2026-11-11)
+#   rejected (TRUE)            -> "M2.1" (Tk -> Tj)
+#   not rejected (FALSE), type 2 -> "M1.1" (Tj -> Tk); other types -> "Other"
+#   undetermined (NA)          -> "Other" (no direction; the edge is left as it is)
+triplet.model <- function (rej, type) {
+  model <- rep("Other", length(rej))
+  model[rej %in% TRUE] <- "M2.1"
+  model[rej %in% FALSE & type == 2] <- "M1.1"
+  model
 }
 
 # Call infer.triplet for triplet analysis
