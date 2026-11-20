@@ -26,7 +26,9 @@ analyse.trio.set(
   cl = NULL,
   chunk.size = NULL,
   V.trioconfounders.filter = TRUE,
-  V.filter.cutoff = 0.2
+  V.filter.cutoff = 0.2,
+  V.filter.method = "BH",
+  V.filter.fdr = 0.05
 )
 }
 \arguments{

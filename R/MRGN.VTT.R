@@ -59,6 +59,8 @@ MRGN.VTT <- function (data,
                       majority.thresh = 0.3,
                       V.trioconfounders.filter = TRUE,
                       V.filter.cutoff = 0.2,
+                      V.filter.method = c("BH", "cutoff"),       # NEW (2026-11-18); "BH" since 2026-11-20
+                      V.filter.fdr = 0.05,                       # NEW (2026-11-18)
                       seed = NULL) {
   mcall <- match.call()
 
@@ -80,6 +82,7 @@ MRGN.VTT <- function (data,
                         method = method, maxiter = maxiter, majority.thresh = majority.thresh,
                         V.trioconfounders.filter = V.trioconfounders.filter,
                         V.filter.cutoff = V.filter.cutoff,
+                        V.filter.method = match.arg(V.filter.method), V.filter.fdr = V.filter.fdr,
                         verbose = verbose, cl = cl, chunk.size = chunk.size)
 
   out$adjacency <- structure(out$adjacency, class = 'adjacency.matrix')
@@ -100,9 +103,14 @@ MRGN.VTT <- function (data,
                             use.perm, gamma, is.CNA, nperms,
                             stringent, solve.conflicts, method, maxiter, majority.thresh,
                             V.trioconfounders.filter, V.filter.cutoff,
+                            V.filter.method = "BH", V.filter.fdr = 0.05,
                             verbose = 0L, cl = NULL, chunk.size = NULL) {
   ### Save the current Adjacency matrix
   old.adjacency <- adjacency
+
+  ### CHANGE (2026-11-20): the V filter test is done inside each trio analysis
+  ### (trio.conf.set()), with one q-value family per trio. The 2026-11-18 version
+  ### (tests of each V-node with all T-/C-nodes, done once here) is removed.
 
   # Initialize some outputs as empty vector/lists
   trio.analysis <- NULL
@@ -152,7 +160,7 @@ MRGN.VTT <- function (data,
                                        data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                        use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                        nperms = nperms, verbose = verbose,
-                                       V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
+                                       V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff, V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr,
                                        cl = cl, chunk.size = chunk.size)
 
     ## Step 3.3: Update the adjacency matrix
@@ -231,7 +239,7 @@ MRGN.VTT <- function (data,
                                           data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                           use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                           nperms = nperms, verbose = verbose,
-                                          V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
+                                          V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff, V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr,
                                           cl = cl, chunk.size = chunk.size)
 
       ## Step 3.6: Update the adjacency matrix
@@ -318,7 +326,7 @@ MRGN.VTT <- function (data,
                                            data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                            use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                            nperms = nperms, verbose = verbose,
-                                           V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
+                                           V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff, V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr,
                                            cl = cl, chunk.size = chunk.size)
 
     ## Step 3.3: Update the adjacency matrix
@@ -401,7 +409,7 @@ MRGN.VTT <- function (data,
                                                 data = data, confounders = confounders, n_t = n_t, n_v = n_v,
                                                 use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                                 nperms = nperms, verbose = verbose,
-                                                V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
+                                                V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff, V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr,
                                                 cl = cl, chunk.size = chunk.size)
 
         ## Step 3.6: Update the adjacency matrix

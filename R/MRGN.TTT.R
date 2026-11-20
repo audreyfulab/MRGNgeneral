@@ -93,7 +93,7 @@ MRGN.TTT <- function (data,
   majority.thresh <- .mrgn.check.majority.thresh(majority.thresh)
 
   out <- .MRGN.TTT.core(data = data, adjacency = adjacency,
-                        n_v = n_v, n_t = n_t, n_q = n_q,
+                        n_v = n_v, n_t = n_t, n_q = n_q, Qlabels = Qlabels,
                         confounders = confounders,
                         alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
                         lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
@@ -119,7 +119,11 @@ MRGN.TTT <- function (data,
 #  - the 'analyse.triplets' switch is handled by the caller;
 #  - iter.nb.triplets now records nb.new.triplets (was nb.new.trios, a Step 3
 #    variable -- bookkeeping only, no effect on the inferred network).
-.MRGN.TTT.core <- function (data, adjacency, n_v, n_t, n_q, confounders,
+## FIX (2026-11-16): new argument Qlabels, passed to analyse.triplet.set() (was
+## not passed, so a Q-node at adjacency column n_v+n_t+k was read from data
+## column n_v+n_t+k instead of Qlabels[k]; correct only when Qlabels are the
+## columns right after the T-nodes).
+.MRGN.TTT.core <- function (data, adjacency, n_v, n_t, n_q, confounders, Qlabels = NULL,
                             alpha, FDRcontrol, fdr, lambda, lambda.step, pi0.meth,
                             stringent, solve.conflicts, method, maxiter,
                             added.edges = NULL, dropped.edges = NULL,
@@ -173,7 +177,7 @@ MRGN.TTT <- function (data,
       # Step 4.2: Determine the directed structure for each triplet
       if (verbose)
         cat("      # Inferring the causal network for each [Ti,Tj,Tk] trio. \n")
-      triplet.analysis <- analyse.triplet.set (triplet.set, nb.triplets = nb.triplets,
+      triplet.analysis <- analyse.triplet.set (triplet.set, nb.triplets = nb.triplets, Qlabels = Qlabels,
                                                alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
                                                lambda = lambda, lambda.step = lambda.step,
                                                pi0.meth = pi0.meth,
@@ -237,7 +241,7 @@ MRGN.TTT <- function (data,
         # Step 4.5: Determine the directed structure for each trio
         if (verbose)
           cat("      # Inferring the causal network for each [Ti,Tj,Qk] trio. \n")
-        Qtriplet.analysis <- analyse.triplet.set (Qtriplet.set, nb.triplets = nb.Qtriplets,
+        Qtriplet.analysis <- analyse.triplet.set (Qtriplet.set, nb.triplets = nb.Qtriplets, Qlabels = Qlabels,
                                                   alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
                                                   lambda = lambda, lambda.step = lambda.step,
                                                   pi0.meth = pi0.meth,

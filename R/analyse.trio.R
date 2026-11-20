@@ -61,7 +61,8 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                              ## analyse.trio.i() -- see there for details.
                              ## Default TRUE since 2026-10-22 (matches MRGN()).
                              V.trioconfounders.filter = TRUE,
-                             V.filter.cutoff = 0.2) {   # was 0.35 before 2026-10-22
+                             V.filter.cutoff = 0.2,   # was 0.35 before 2026-10-22
+                             V.filter.method = "BH", V.filter.fdr = 0.05) {   # NEW (2026-11-20): see trio.conf.set()
   ## CHANGE (2026-11-11): the separate 'none' branch is removed; "none" now goes
   ## through the p.adjust branch below (p.adjust(method = "none") leaves the
   ## p-values unchanged, threshold alpha). The old branch used the model computed
@@ -78,6 +79,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    nperms = nperms, half1 = TRUE, verbose = verbose > 1,
                                    V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
+                                   V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr,
                                    cl = cl, chunk.size = chunk.size)
            all.stats <- do.call('rbind', all.stats)
            ## FIX (2026-10-07): select by name, not position 8 -- MRGN >= 1.3.9's
@@ -128,6 +130,7 @@ analyse.trio.set <- function(trio.set, nb.trios = NROW(trio.set), Qlabels = NULL
                                    use.perm = use.perm, gamma = gamma, is.CNA = is.CNA,
                                    nperms = nperms, half1 = TRUE, verbose = verbose > 1,
                                    V.trioconfounders.filter = V.trioconfounders.filter, V.filter.cutoff = V.filter.cutoff,
+                                   V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr,
                                    cl = cl, chunk.size = chunk.size)
            all.stats <- do.call('rbind', all.stats)
            ## FIX (2026-10-07): select by name, not position 8 -- see matching
@@ -202,7 +205,8 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
                             ## filter by correlation with THIS trio's own Vi. Default
                             ## TRUE since 2026-10-22 (was FALSE; matches MRGN()).
                             V.trioconfounders.filter = TRUE,
-                            V.filter.cutoff = 0.2) {   # was 0.35 before 2026-10-22
+                            V.filter.cutoff = 0.2,   # was 0.35 before 2026-10-22
+                            V.filter.method = "BH", V.filter.fdr = 0.05) {   # NEW (2026-11-20): see trio.conf.set()
 
   # Replace Adj column index by data column index if any of the two T-nodes is a Q-node
   n_vt <- n_t + n_v
@@ -215,38 +219,12 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
     }
   }
 
-  # For each trio, take the union of the confounders for the two T nodes
-  conf.set.trio <- c(if (col.indices[2] <= n_vt) confounders[[col.indices[2] - n_v]], # Take confounder index for T-node
-                     if (col.indices[3] <= n_vt) confounders[[col.indices[3] - n_v]]) # Result is NULL if Q-node
-
-  #conf.set.trio <- unique(conf.set.trio)
-
-  # Find and remove duplicates (V-nodes, T-nodes), if any
-  #VTduplicates <- conf.set.trio %in% col.indices
-  #if (any(VTduplicates))
-  #  conf.set.trio <- conf.set.trio[!VTduplicates]
-
-  ### ---- BEGIN NEW STEP (2026-09-17): dynamic, per-trio confounder filter ----
-  ## Unlike the Tcandidates filter (get.conf.sets.R, 2026-09-08, which restricts
-  ## the T-T confounder POOL once, statically, per T-node, based on that T-node's
-  ## own OVERALL set of selected V-confounders), this filters the confounder set
-  ## ALREADY ASSEMBLED for THIS SPECIFIC trio (conf.set.trio, the union of Tj's
-  ## and Tk's selected confounders as usual -- confounder selection in
-  ## get.conf.sets() itself is completely untouched), based on correlation with
-  ## col.indices[1] = Vi, the ACTUAL V-node anchoring this one trio -- not Tj's
-  ## or Tk's V-confounders in general, which may differ from Vi. A candidate
-  ## confounder correlated with this trio's own instrument (Vi) is excluded from
-  ## THIS trio's regression only; other trios sharing the same Tj/Tk but a
-  ## different Vi are filtered independently, using their own Vi.
-  if (V.trioconfounders.filter && length(conf.set.trio) > 0) {
-    Vi_col <- col.indices[1]
-    cors_to_Vi <- sapply(conf.set.trio, function(cidx) {
-      cor(data[, Vi_col], data[, cidx], use = "pairwise.complete.obs")
-    })
-    cors_to_Vi[is.na(cors_to_Vi)] <- 0  # guard: zero-variance confounder -> NA correlation
-    conf.set.trio <- conf.set.trio[abs(cors_to_Vi) < V.filter.cutoff]
-  }
-  ### ---- END NEW STEP (2026-09-17) ----
+  # Confounder set of the trio (union for the two T-nodes) after the per-trio V filter
+  ## CHANGE (2026-11-16): moved into trio.conf.set() (below).
+  conf.set.trio <- trio.conf.set(col.indices, data = data, n_v = n_v, n_t = n_t,
+                                 confounders = confounders,
+                                 V.trioconfounders.filter = V.trioconfounders.filter,
+                                 V.filter.cutoff = V.filter.cutoff, V.filter.method = V.filter.method, V.filter.fdr = V.filter.fdr)$keep
 
   # All indices of variables in the trio (including counfounders)
   all_indices <- unique(c(col.indices, conf.set.trio))
@@ -276,6 +254,92 @@ analyse.trio.i <- function (col.indices, # indicate column number in the adjacen
                  "Minor.freq", "Inferred.Model")]
   else
     trio.res
+}
+
+### Confounder set of one trio, with the per-trio V filter
+## (moved out of analyse.trio.i() on 2026-11-16)
+## col.indices: data column numbers of (Vi, node2, node3); a Q-node (column
+## number > n_v + n_t) has no confounder set of its own.
+## Returns list(keep = confounders used in the regression,
+##              removed = confounders dropped by the V filter,
+##              test = per-trio V filter test table (NULL if not done)).
+trio.conf.set <- function (col.indices, data, n_v, n_t, confounders,
+                           V.trioconfounders.filter = TRUE, V.filter.cutoff = 0.2,
+                           V.filter.method = "BH", V.filter.fdr = 0.05) {  # NEW (2026-11-20)
+  n_vt <- n_t + n_v
+
+  # For each trio, take the union of the confounders for the two T nodes
+  conf.set.trio <- c(if (col.indices[2] <= n_vt) confounders[[col.indices[2] - n_v]], # Take confounder index for T-node
+                     if (col.indices[3] <= n_vt) confounders[[col.indices[3] - n_v]]) # Result is NULL if Q-node
+
+  #conf.set.trio <- unique(conf.set.trio)
+
+  # Find and remove duplicates (V-nodes, T-nodes), if any
+  #VTduplicates <- conf.set.trio %in% col.indices
+  #if (any(VTduplicates))
+  #  conf.set.trio <- conf.set.trio[!VTduplicates]
+
+  ### ---- BEGIN NEW STEP (2026-09-17): dynamic, per-trio confounder filter ----
+  ## Unlike the Tcandidates filter (get.conf.sets.R, 2026-09-08, which restricts
+  ## the T-T confounder POOL once, statically, per T-node, based on that T-node's
+  ## own OVERALL set of selected V-confounders), this filters the confounder set
+  ## ALREADY ASSEMBLED for THIS SPECIFIC trio (conf.set.trio, the union of Tj's
+  ## and Tk's selected confounders as usual -- confounder selection in
+  ## get.conf.sets() itself is completely untouched), based on correlation with
+  ## col.indices[1] = Vi, the ACTUAL V-node anchoring this one trio -- not Tj's
+  ## or Tk's V-confounders in general, which may differ from Vi. A candidate
+  ## confounder correlated with this trio's own instrument (Vi) is excluded from
+  ## THIS trio's regression only; other trios sharing the same Tj/Tk but a
+  ## different Vi are filtered independently, using their own Vi.
+  ## CHANGE (2026-11-18): only nodes with column number > n_v (T- and C-nodes)
+  ## are filtered; V-nodes stay in the set (a V-node is never downstream of Vi),
+  ## and Vi itself is taken out (it is already a node of the trio).
+  ## CHANGE (2026-11-20): V.filter.method = "BH" (default) tests, in THIS trio
+  ## (after the trio is formed), the marginal correlation of Vi with each
+  ## T-/C-node of the trio's confounder set (cor.test(), t-test on complete
+  ## pairs), and applies the Benjamini-Hochberg correction over these tests only
+  ## (one family per trio). A node is dropped when its BH-adjusted p-value is
+  ## <= V.filter.fdr.
+  ## (Earlier 2026-11-20 version: q-values (adjust.q) per trio, replaced by BH.
+  ## 2026-11-18 version: q-values over all C-nodes of Vi, computed once before
+  ## the trios; replaced.)
+  ## V.filter.method = "cutoff": dropped when |cor(Vi, node)| >= V.filter.cutoff
+  ## (rule before 2026-11-18).
+  removed <- NULL
+  test <- NULL
+  Vi_col <- col.indices[1]
+  conf.set.trio <- conf.set.trio[conf.set.trio != Vi_col]
+  if (V.trioconfounders.filter && length(conf.set.trio) > 0) {
+    tested <- conf.set.trio > n_v
+    if (any(tested)) {
+      nodes <- unique(conf.set.trio[tested])   # each node tested once
+      r <- sapply(nodes, function(cidx) {
+        cor(data[, Vi_col], data[, cidx], use = "pairwise.complete.obs")
+      })
+      if (identical(V.filter.method, "BH")) {
+        pv <- sapply(nodes, function(cidx) {
+          tryCatch(stats::cor.test(data[, Vi_col], data[, cidx])$p.value,  # t-test, complete pairs
+                   error = function(e) NA_real_)                           # < 3 complete pairs
+        })
+        padj <- stats::p.adjust(pv, method = "BH")   # NA p-values are left out of the family
+        sig <- !is.na(padj) & padj <= V.filter.fdr
+        test <- data.frame(node = nodes, cor = r, pvalue = pv, p.BH = padj,
+                           removed = sig)
+        drop.nodes <- nodes[sig]
+      } else if (identical(V.filter.method, "cutoff")) {
+        r[is.na(r)] <- 0  # guard: zero-variance confounder -> NA correlation
+        drop.nodes <- nodes[abs(r) >= V.filter.cutoff]
+      } else {
+        stop("'V.filter.method' must be \"BH\" or \"cutoff\".")
+      }
+      dropped <- conf.set.trio %in% drop.nodes
+      removed <- conf.set.trio[dropped]
+      conf.set.trio <- conf.set.trio[!dropped]
+    }
+  }
+  ### ---- END NEW STEP (2026-09-17) ----
+
+  list(keep = conf.set.trio, removed = removed, test = test)
 }
 
 ### Groups of trio tests corrected separately for multiple testing (added 2026-11-11).

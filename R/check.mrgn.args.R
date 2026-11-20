@@ -157,7 +157,11 @@ check.mrgn.args <- function() {
 
     # Orient all V -- T edges as V --> T
     adjacency[(1+n_v):nb.nodes, 1:n_v] <- 0
-    dimnames(adjacency) <- list(Labels[1:nb.nodes], Labels[1:nb.nodes])
+    ## FIX (2026-11-16): name the Q rows/columns after the data columns Qlabels
+    ## (was Labels[n_v+n_t+1:n_q], wrong when Qlabels are not those columns)
+    nodeLabels <- if (n_q > 0) Labels[c(1:(n_v + n_t), Qlabels)] else Labels[1:nb.nodes]
+    dimnames(adjacency) <- list(nodeLabels, nodeLabels)
+    rm(nodeLabels)
 
     # Save the input adjacency matrix
     Adj0 <- adjacency

@@ -35,6 +35,8 @@ MRGN.VTT(
   majority.thresh = 0.3,
   V.trioconfounders.filter = TRUE,
   V.filter.cutoff = 0.2,
+  V.filter.method = c("BH", "cutoff"),
+  V.filter.fdr = 0.05,
   seed = NULL
 )
 }
@@ -133,11 +135,29 @@ statically restricts confounder selection per T-node using that T-node's
 overall set of selected V-confounders, this filter is recomputed fresh for
 every trio, using the specific V anchoring that one trio. Defaults to
 \code{TRUE} (since 2026-10-22; previously \code{FALSE}). Set to \code{FALSE}
-to leave confounder sets completely unchanged. Added 2026-09-17.}
+to leave confounder sets completely unchanged. Added 2026-09-17.
+
+Since 2026-11-18, only \code{T}- and \code{C}-nodes are filtered: \code{V}-nodes
+in the confounder set are kept, and the trio's own \code{V}-node is taken out
+(it is already a node of the trio).}
 
 \item{V.filter.cutoff}{numeric, the \code{|cor(Vi, confounder)|} cutoff
-used when \code{V.trioconfounders.filter = TRUE}. Ignored otherwise. Defaults
+used when \code{V.trioconfounders.filter = TRUE} and
+\code{V.filter.method = "cutoff"}. Ignored otherwise. Defaults
 to \code{0.2} (since 2026-10-22; previously \code{0.35}). Added 2026-09-17.}
+
+\item{V.filter.method}{character, how a node is judged correlated with the
+trio's \code{V}-node. \code{"BH"} (default): in each trio (after the trio is
+formed), t-test of the marginal correlation (\code{cor.test}) of the trio's
+\code{V}-node with each \code{T}-/\code{C}-node of the trio's confounder set,
+with Benjamini-Hochberg correction over the tests of this trio only; a node is
+removed when its BH-adjusted p-value is \code{<= V.filter.fdr} (since
+2026-11-20; q-values were used from 2026-11-18 to 2026-11-20).
+\code{"cutoff"}: removed when \code{|cor(Vi, node)| >= V.filter.cutoff}
+(rule before 2026-11-18).}
+
+\item{V.filter.fdr}{numeric, the FDR level of the BH correction used when
+\code{V.filter.method = "BH"}. Defaults to \code{0.05}. Added 2026-11-18.}
 
 \item{seed}{Integer, random seed for reproducible results in parallel computing.
 If NULL (default), no seed is set}

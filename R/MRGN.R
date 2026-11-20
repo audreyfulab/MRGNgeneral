@@ -118,8 +118,26 @@
 #' \code{TRUE} (since 2026-10-22; previously \code{FALSE}). Set to \code{FALSE}
 #' to leave confounder sets completely unchanged. Added 2026-09-17.
 #'
+#' Since 2026-11-18, only \code{T}- and \code{C}-nodes are filtered: \code{V}-nodes
+#' in the confounder set are kept, and the trio's own \code{V}-node is taken out
+#' (it is already a node of the trio).
+#'
+#' @param V.filter.method character, how a node is judged correlated with the
+#' trio's \code{V}-node. \code{"BH"} (default): in each trio (after the trio is
+#' formed), t-test of the marginal correlation (\code{cor.test}) of the trio's
+#' \code{V}-node with each \code{T}-/\code{C}-node of the trio's confounder set,
+#' with Benjamini-Hochberg correction over the tests of this trio only; a node is
+#' removed when its BH-adjusted p-value is \code{<= V.filter.fdr} (since
+#' 2026-11-20; q-values were used from 2026-11-18 to 2026-11-20).
+#' \code{"cutoff"}: removed when \code{|cor(Vi, node)| >= V.filter.cutoff}
+#' (rule before 2026-11-18).
+#'
+#' @param V.filter.fdr numeric, the FDR level of the BH correction used when
+#' \code{V.filter.method = "BH"}. Defaults to \code{0.05}. Added 2026-11-18.
+#'
 #' @param V.filter.cutoff numeric, the \code{|cor(Vi, confounder)|} cutoff
-#' used when \code{V.trioconfounders.filter = TRUE}. Ignored otherwise. Defaults
+#' used when \code{V.trioconfounders.filter = TRUE} and
+#' \code{V.filter.method = "cutoff"}. Ignored otherwise. Defaults
 #' to \code{0.2} (since 2026-10-22; previously \code{0.35}). Added 2026-09-17.
 #'
 #' @details
@@ -233,6 +251,8 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                   ## See analyse.trio.i() in R/analyse.trio.R for the actual filter.
                   V.trioconfounders.filter = TRUE,
                   V.filter.cutoff = 0.2,   # CHANGED (2026-10-22): was 0.35
+                  V.filter.method = c("BH", "cutoff"), # NEW (2026-11-18); "BH" since 2026-11-20: per-trio marginal correlation test + BH
+                  V.filter.fdr = 0.05,     # NEW (2026-11-18): FDR level of the V filter (BH since 2026-11-20)
                   seed = NULL) { # seed for reproducible results in parallel computing
   # ============================================================================
   # Save the call to MRGN
@@ -271,6 +291,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
                           method = method, maxiter = maxiter, majority.thresh = majority.thresh,
                           V.trioconfounders.filter = V.trioconfounders.filter,
                           V.filter.cutoff = V.filter.cutoff,
+                          V.filter.method = match.arg(V.filter.method), V.filter.fdr = V.filter.fdr,
                           verbose = verbose, cl = cl, chunk.size = chunk.size)
     adjacency <- vtt$adjacency
     added.edges <- vtt$added.edges
@@ -280,7 +301,7 @@ MRGN <- function (data, # input n-by-m data matrix: 'n_v' Variants, 'n_t' Phenot
   ### Step 4: TTT triplet analysis
   if (analyse.triplets) {
     ttt <- .MRGN.TTT.core(data = data, adjacency = adjacency,
-                          n_v = n_v, n_t = n_t, n_q = n_q,
+                          n_v = n_v, n_t = n_t, n_q = n_q, Qlabels = Qlabels,
                           confounders = confounders,
                           alpha = alpha, FDRcontrol = FDRcontrol, fdr = fdr,
                           lambda = lambda, lambda.step = lambda.step, pi0.meth = pi0.meth,
